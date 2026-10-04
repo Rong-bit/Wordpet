@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Word, Pet, Item } from '../types';
 import { calculateNextReview } from '../utils/srs';
 import { soundFx } from '../utils/sound';
@@ -62,6 +62,17 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
   const [earnedExp, setEarnedExp] = useState(0);
   const [earnedCoins, setEarnedCoins] = useState(0);
   const [quizFinished, setQuizFinished] = useState(false);
+
+  // Auto-next timer ref for seamless instant transition on correct answer
+  const autoNextTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (autoNextTimerRef.current) {
+        clearTimeout(autoNextTimerRef.current);
+      }
+    };
+  }, []);
 
   // Initialize test list
   useEffect(() => {
@@ -163,6 +174,11 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
       soundFx.playCorrect();
       setEarnedExp(prev => prev + 25);
       setEarnedCoins(prev => prev + 15);
+
+      // 測驗若正確，直接下一題（等待 550ms 讓使用者看見綠色反饋及播放提示音）
+      autoNextTimerRef.current = setTimeout(() => {
+        handleNextWord();
+      }, 550);
     } else {
       soundFx.playWrong();
       setMistakeWords(prev => [...prev, updatedWord]);
@@ -173,6 +189,10 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
   };
 
   const handleNextWord = () => {
+    if (autoNextTimerRef.current) {
+      clearTimeout(autoNextTimerRef.current);
+      autoNextTimerRef.current = null;
+    }
     if (currentIndex + 1 < testWords.length) {
       setCurrentIndex(prev => prev + 1);
     } else {
@@ -488,28 +508,13 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
         </form>
       )}
 
-      {/* Answer Feedback & Error Analysis */}
-      {isAnswered && (
+      {/* Answer Feedback & Error Analysis: ONLY show when incorrect! */}
+      {isAnswered && !isCorrect && (
         <div className="mt-5 space-y-3 animate-in fade-in duration-300">
-          <div
-            className={`rounded-2xl border p-4 text-xs ${
-              isCorrect
-                ? 'border-emerald-500/30 bg-emerald-950/30 text-emerald-200'
-                : 'border-rose-500/30 bg-rose-950/30 text-rose-200'
-            }`}
-          >
-            <div className="flex items-center gap-2 font-black text-base sm:text-lg mb-2">
-              {isCorrect ? (
-                <>
-                  <CheckCircle className="h-5 w-5 text-emerald-400" />
-                  答對了！精準命中！
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-5 w-5 text-rose-400" />
-                  答錯了，請仔細查看觀念解析！
-                </>
-              )}
+          <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 text-rose-200 p-4 sm:p-5 text-sm">
+            <div className="flex items-center gap-2 font-black text-base sm:text-lg mb-2 text-rose-300">
+              <XCircle className="h-5 w-5 text-rose-400 shrink-0" />
+              答錯了，請仔細查看觀念解析！
             </div>
 
             {/* In-depth error clarification */}

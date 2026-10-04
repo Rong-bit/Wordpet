@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Word, Pet } from '../types';
 import { soundFx } from '../utils/sound';
 import { speakEnglish } from '../utils/tts';
@@ -44,6 +44,17 @@ export const WeakWordsDrill: React.FC<WeakWordsDrillProps> = ({
   const [earnedExp, setEarnedExp] = useState(0);
   const [earnedCoins, setEarnedCoins] = useState(0);
 
+  // Auto-next timer ref on correct answer
+  const autoNextTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (autoNextTimerRef.current) {
+        clearTimeout(autoNextTimerRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     // If user has weak words, load them; else sample low-repetition words
     let initialList = [...weakWords];
@@ -86,12 +97,21 @@ export const WeakWordsDrill: React.FC<WeakWordsDrillProps> = ({
       soundFx.playCorrect();
       setEarnedExp(prev => prev + 30);
       setEarnedCoins(prev => prev + 20);
+
+      // 若正確直接下一題（等待 550ms）
+      autoNextTimerRef.current = setTimeout(() => {
+        handleNextWord();
+      }, 550);
     } else {
       soundFx.playWrong();
     }
   };
 
   const handleNextWord = () => {
+    if (autoNextTimerRef.current) {
+      clearTimeout(autoNextTimerRef.current);
+      autoNextTimerRef.current = null;
+    }
     if (!currentWord) return;
 
     if (isCorrect) {
@@ -240,12 +260,12 @@ export const WeakWordsDrill: React.FC<WeakWordsDrillProps> = ({
         })}
       </div>
 
-      {/* Clarification on Answer */}
-      {isAnswered && (
+      {/* Clarification on Answer: ONLY show when incorrect! */}
+      {isAnswered && !isCorrect && (
         <div className="mt-5 space-y-3 animate-in fade-in duration-200">
-          <div className="rounded-2xl border border-slate-700/80 bg-slate-950/80 p-4 text-xs text-slate-300">
-            <p className="font-bold text-white mb-1">
-              {currentWord.word} = <span className="text-amber-300">{currentWord.meaning}</span>
+          <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 p-4 text-xs text-slate-300">
+            <p className="font-bold text-rose-300 mb-1 text-sm">
+              <span className="text-white font-mono">{currentWord.word}</span> = <span className="text-amber-300">{currentWord.meaning}</span>
             </p>
             <p className="italic text-slate-300">"{currentWord.exampleEn}"</p>
             <p className="text-slate-400 text-[11px] mb-2">{currentWord.exampleZh}</p>
@@ -257,9 +277,9 @@ export const WeakWordsDrill: React.FC<WeakWordsDrillProps> = ({
 
           <button
             onClick={handleNextWord}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-amber-500 hover:bg-amber-400 py-3.5 text-xs font-bold text-slate-950 transition-colors shadow-lg"
+            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-amber-500 hover:bg-amber-400 py-3.5 text-xs font-bold text-slate-950 transition-colors shadow-lg cursor-pointer"
           >
-            {isCorrect ? '已掌握！挑戰下一題' : '記住了！放回隊列重測'}
+            記住了！放回隊列重測
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
