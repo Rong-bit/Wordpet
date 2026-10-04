@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Word, WordCategory } from '../types';
 import { speakEnglish } from '../utils/tts';
-import { getVerbForms, getNounForms } from '../utils/englishGrammar';
+import { getVerbForms, getNounForms, detectPartOfSpeech } from '../utils/englishGrammar';
 import {
   Search,
   Plus,
@@ -37,6 +37,7 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [filterMode, setFilterMode] = useState<'all' | 'due' | 'weak' | 'mastered'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isManualPos, setIsManualPos] = useState(false);
 
   // New Word Form State - Simplified & Clean
   const [newWord, setNewWord] = useState({
@@ -45,6 +46,18 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
     meaning: '',
     category: 'custom' as WordCategory,
   });
+
+  // Real-time Part of Speech Detection
+  const detectedPOS = (newWord.word.trim() || newWord.meaning.trim())
+    ? detectPartOfSpeech(newWord.word, newWord.meaning)
+    : null;
+
+  // Auto-switch POS unless user manually override
+  useEffect(() => {
+    if (!isManualPos && detectedPOS) {
+      setNewWord(prev => (prev.partOfSpeech !== detectedPOS.pos ? { ...prev, partOfSpeech: detectedPOS.pos } : prev));
+    }
+  }, [newWord.word, newWord.meaning, isManualPos, detectedPOS]);
 
   const isVerb = newWord.partOfSpeech.startsWith('v');
   const isNoun = newWord.partOfSpeech.startsWith('n');
@@ -184,8 +197,11 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
           )}
 
           <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-bold text-white transition-colors shadow-lg shadow-indigo-600/30"
+            onClick={() => {
+              setIsManualPos(false);
+              setShowAddModal(true);
+            }}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-bold text-white transition-colors shadow-lg shadow-indigo-600/30 cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             新增自訂單字
@@ -406,7 +422,10 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                   </label>
                   <select
                     value={newWord.partOfSpeech}
-                    onChange={e => setNewWord({ ...newWord, partOfSpeech: e.target.value })}
+                    onChange={e => {
+                      setIsManualPos(true);
+                      setNewWord({ ...newWord, partOfSpeech: e.target.value });
+                    }}
                     className="w-full rounded-xl bg-slate-800 border border-slate-700 px-2 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 font-bold"
                   >
                     <option value="v.">v. 動詞</option>
@@ -418,6 +437,34 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                   </select>
                 </div>
               </div>
+
+              {/* Intelligent POS Auto-Detection Banner */}
+              {detectedPOS && (
+                <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-xs animate-in fade-in duration-150">
+                  <div className="flex items-center gap-1.5 text-indigo-300">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                    <span>
+                      智慧偵測詞性：
+                      <b className="text-amber-300 font-bold ml-1">{detectedPOS.label}</b>
+                      <span className="text-[10px] text-slate-400 ml-1.5 hidden sm:inline">
+                        （{detectedPOS.reason}）
+                      </span>
+                    </span>
+                  </div>
+                  {isManualPos && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsManualPos(false);
+                        setNewWord(prev => ({ ...prev, partOfSpeech: detectedPOS.pos }));
+                      }}
+                      className="text-[10px] text-indigo-400 hover:text-indigo-200 underline font-semibold ml-2 cursor-pointer"
+                    >
+                      重新採用建議
+                    </button>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">

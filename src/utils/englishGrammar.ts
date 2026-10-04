@@ -357,3 +357,221 @@ export function getNounForms(rawNoun: string): NounForms {
   // Default: + s
   return { singular: clean, plural: `${clean}s` };
 }
+
+export interface DetectedPOS {
+  pos: 'v.' | 'n.' | 'adj.' | 'adv.' | 'phr.' | 'prep.';
+  label: string;
+  reason: string;
+}
+
+const COMMON_PREPOSITIONS = new Set([
+  'in', 'on', 'at', 'by', 'for', 'with', 'about', 'against', 'between',
+  'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to',
+  'from', 'up', 'down', 'under', 'behind', 'over', 'across', 'along',
+  'among', 'around', 'without', 'within', 'toward', 'towards', 'onto',
+  'upon', 'inside', 'outside', 'beside', 'beyond', 'throughout',
+]);
+
+const COMMON_BASE_VERBS = new Set([
+  'take', 'make', 'go', 'come', 'get', 'see', 'know', 'give', 'find',
+  'think', 'tell', 'become', 'leave', 'feel', 'put', 'bring', 'begin',
+  'keep', 'hold', 'write', 'stand', 'hear', 'let', 'mean', 'set', 'meet',
+  'run', 'pay', 'sit', 'speak', 'lie', 'lead', 'read', 'grow', 'lose',
+  'fall', 'send', 'build', 'understand', 'draw', 'break', 'spend', 'cut',
+  'rise', 'drive', 'buy', 'wear', 'choose', 'eat', 'swim', 'sing', 'fly',
+  'teach', 'sell', 'throw', 'win', 'shake', 'forget', 'wake', 'like', 'love',
+  'hate', 'want', 'need', 'help', 'work', 'play', 'live', 'stay', 'stop',
+  'start', 'finish', 'open', 'close', 'ask', 'answer', 'try', 'look', 'watch',
+  'listen', 'call', 'talk', 'walk', 'jump', 'move', 'change', 'turn', 'follow',
+  'create', 'provide', 'allow', 'add', 'kill', 'reach', 'pass', 'decide',
+  'return', 'hope', 'explain', 'carry', 'develop', 'agree', 'support', 'hit',
+  'produce', 'cover', 'catch', 'enjoy', 'remember', 'prefer', 'learn', 'study',
+  'protect', 'improve', 'increase', 'decrease', 'reduce', 'manage', 'practice',
+  'describe', 'compare', 'connect', 'collect', 'discover', 'explore', 'invent',
+]);
+
+/**
+ * Automatically analyze an English word and its Chinese meaning to determine its Part of Speech (詞性).
+ */
+export function detectPartOfSpeech(rawWord: string, rawMeaning: string): DetectedPOS {
+  const cleanWord = rawWord.trim().toLowerCase();
+  const cleanMeaning = rawMeaning.trim();
+
+  // 1. Check for phrases (multiple words separated by spaces or hyphens)
+  if (cleanWord.includes(' ') || cleanWord.includes('-')) {
+    return {
+      pos: 'phr.',
+      label: 'phr. 片語',
+      reason: '單字含空格或連字號，辨識為複合片語',
+    };
+  }
+
+  // 2. Prepositions
+  if (COMMON_PREPOSITIONS.has(cleanWord)) {
+    return {
+      pos: 'prep.',
+      label: 'prep. 介系詞',
+      reason: `「${cleanWord}」為常見英文介系詞`,
+    };
+  }
+  if (
+    cleanMeaning.startsWith('在...') ||
+    cleanMeaning.startsWith('向...') ||
+    cleanMeaning.startsWith('從...') ||
+    cleanMeaning.startsWith('關於') ||
+    cleanMeaning.startsWith('為了') ||
+    cleanMeaning.startsWith('朝著') ||
+    cleanMeaning.startsWith('隨著') ||
+    cleanMeaning.startsWith('在...之間') ||
+    cleanMeaning.includes('介系詞')
+  ) {
+    return {
+      pos: 'prep.',
+      label: 'prep. 介系詞',
+      reason: '中文釋義具備介系詞特徵（在.../向.../關於）',
+    };
+  }
+
+  // 3. Adjectives (adj.) - Strong Chinese signal (ends with '的')
+  if (
+    cleanMeaning.endsWith('的') ||
+    cleanMeaning.includes('...的') ||
+    cleanMeaning.includes('性的') ||
+    cleanMeaning.endsWith('樣的') ||
+    cleanMeaning.endsWith('似的')
+  ) {
+    return {
+      pos: 'adj.',
+      label: 'adj. 形容詞',
+      reason: '中文釋義以「...的」結尾，強特徵為形容詞',
+    };
+  }
+
+  // 4. Adverbs (adv.) - Strong Chinese signal (ends with '地' or '得') or English -ly
+  if (
+    cleanMeaning.endsWith('地') ||
+    cleanMeaning.endsWith('得') ||
+    cleanMeaning.includes('...地') ||
+    cleanMeaning.startsWith('非常') ||
+    cleanMeaning.startsWith('特別') ||
+    cleanMeaning.startsWith('極其')
+  ) {
+    return {
+      pos: 'adv.',
+      label: 'adv. 副詞',
+      reason: '中文釋義以「...地」或程度修飾特徵，辨識為副詞',
+    };
+  }
+  if (
+    cleanWord.length > 3 &&
+    cleanWord.endsWith('ly') &&
+    cleanWord !== 'family' &&
+    cleanWord !== 'ally' &&
+    cleanWord !== 'rely' &&
+    cleanWord !== 'supply' &&
+    cleanWord !== 'apply'
+  ) {
+    return {
+      pos: 'adv.',
+      label: 'adv. 副詞',
+      reason: '英文具備副詞後綴「-ly」',
+    };
+  }
+  if (cleanWord.endsWith('ward') || cleanWord.endsWith('wards') || cleanWord.endsWith('wise')) {
+    return {
+      pos: 'adv.',
+      label: 'adv. 副詞',
+      reason: '英文具備副詞方向/方式後綴（-ward / -wise）',
+    };
+  }
+
+  // 5. English Suffix rules for Adjectives (adj.)
+  if (
+    cleanWord.endsWith('ful') ||
+    cleanWord.endsWith('less') ||
+    cleanWord.endsWith('able') ||
+    cleanWord.endsWith('ible') ||
+    cleanWord.endsWith('ous') ||
+    cleanWord.endsWith('ious') ||
+    cleanWord.endsWith('ive') ||
+    cleanWord.endsWith('ative') ||
+    cleanWord.endsWith('itive') ||
+    cleanWord.endsWith('ic') ||
+    cleanWord.endsWith('ical') ||
+    cleanWord.endsWith('ish')
+  ) {
+    return {
+      pos: 'adj.',
+      label: 'adj. 形容詞',
+      reason: '英文具備經典形容詞後綴（-ful/-able/-ous/-ive/-ic 等）',
+    };
+  }
+
+  // 6. English Suffix rules for Nouns (n.)
+  if (
+    cleanWord.endsWith('tion') ||
+    cleanWord.endsWith('sion') ||
+    cleanWord.endsWith('ment') ||
+    cleanWord.endsWith('ness') ||
+    cleanWord.endsWith('ity') ||
+    cleanWord.endsWith('ance') ||
+    cleanWord.endsWith('ence') ||
+    cleanWord.endsWith('ship') ||
+    cleanWord.endsWith('hood') ||
+    cleanWord.endsWith('dom') ||
+    cleanWord.endsWith('ist') ||
+    cleanWord.endsWith('ism') ||
+    cleanWord.endsWith('logy') ||
+    cleanWord.endsWith('graphy') ||
+    cleanWord.endsWith('tude') ||
+    IRREGULAR_NOUNS[cleanWord]
+  ) {
+    return {
+      pos: 'n.',
+      label: 'n. 名詞',
+      reason: '英文具備經典名詞後綴（-tion/-ment/-ness/-ity 或名詞字典庫）',
+    };
+  }
+
+  // 7. Check if in Verb dictionary or verb suffixes (-ize, -ify, -ate)
+  if (
+    IRREGULAR_VERBS[cleanWord] ||
+    COMMON_BASE_VERBS.has(cleanWord) ||
+    cleanWord.endsWith('ize') ||
+    cleanWord.endsWith('ise') ||
+    cleanWord.endsWith('ify') ||
+    (cleanWord.endsWith('ate') && cleanWord.length > 4)
+  ) {
+    return {
+      pos: 'v.',
+      label: 'v. 動詞',
+      reason: '符合動詞詞庫或動詞後綴（-ize/-ify/-ate 等）',
+    };
+  }
+
+  // 8. Chinese verb action keywords
+  const actionKeywords = [
+    '使', '令', '讓', '做', '跑', '走', '吃', '喝', '拿', '帶', '放', '開',
+    '關', '幫', '變', '給', '換', '加', '減', '贏', '輸', '建', '停', '住',
+    '睡', '醒', '笑', '哭', '叫', '唱', '跳', '修', '洗', '切', '選', '查',
+    '寄', '借', '還', '寫', '讀', '看', '聽', '說', '買', '賣', '想', '學',
+    '問', '答', '愛', '恨', '玩', '練', '考', '算', '飛', '遊', '推', '拉',
+    '尋找', '探索', '保護', '改善', '管理', '創造', '提供', '允許', '決定',
+    '解釋', '支持', '生產', '享受', '記得', '進行',
+  ];
+
+  if (actionKeywords.some(kw => cleanMeaning.includes(kw))) {
+    return {
+      pos: 'v.',
+      label: 'v. 動詞',
+      reason: '中文釋義含有動作語義特徵',
+    };
+  }
+
+  // 9. Default fallback: Most common part of speech in English is Noun
+  return {
+    pos: 'n.',
+    label: 'n. 名詞',
+    reason: '標準名詞詞類判定',
+  };
+}
