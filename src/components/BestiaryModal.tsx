@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BestiaryEntry, PetRarity, Pet } from '../types';
+import { BestiaryEntry, PetRarity, Pet, PetElement, PetStage } from '../types';
 import { BESTIARY_DATA } from '../data/bestiary';
 import { PetCanvas } from './PetCanvas';
 import { soundFx } from '../utils/sound';
@@ -19,24 +19,33 @@ import {
   Moon,
   ShieldCheck,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  HeartHandshake,
+  Bot,
 } from 'lucide-react';
 
 interface BestiaryModalProps {
   unlockedSpecies: string[];
   isOpen: boolean;
   onClose: () => void;
+  onSelectPet?: (pet: Pet) => void;
+  currentPetId?: string;
 }
 
-interface UltimatePetGalleryItem extends Pet {
+interface ShowcasePetItem extends Pet {
   talent: string;
   talentDesc: string;
   elementIcon: React.ReactNode;
   lore: string;
 }
 
-const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
+// Complete showcase catalog covering all major evolution lines
+const ALL_SHOWCASE_PETS: ShowcasePetItem[] = [
+  // --- 6 ULTIMATE MYTHIC FORMS ---
   {
-    id: 'ultimate_flame_dragon',
+    id: 'preview_ultimate_flame',
     name: '恆星日珥神龍 (終極變異)',
     title: '日珥天體霸主',
     element: 'flame',
@@ -73,14 +82,14 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     hatchedAt: new Date().toISOString(),
     wordsLearnedCount: 1500,
     evolutionPower: 999,
-    specialTrait: '過目不忘：經驗與金幣永久提升 +25%',
+    specialTrait: '過目不忘：背單字經驗與金幣永久提升 +25%',
     talent: '【過目不忘】',
     talentDesc: '背誦單字獲得的經驗值與金幣永久提升 +25%！',
     lore: '歷經極限連勝考驗所誕生的終極烈焰神龍，羽翼如天體日珥般熾熱，周圍環繞著燃燒星軌。',
     elementIcon: <Flame className="h-4 w-4 text-orange-400" />,
   },
   {
-    id: 'ultimate_frost_fox',
+    id: 'preview_ultimate_frost',
     name: '極光永凍九尾天狐 (終極變異)',
     title: '極光守護仙靈',
     element: 'frost',
@@ -124,7 +133,7 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     elementIcon: <Snowflake className="h-4 w-4 text-cyan-400" />,
   },
   {
-    id: 'ultimate_nature_stag',
+    id: 'preview_ultimate_nature',
     name: '世界之樹守護神鹿 (傳說終極)',
     title: '知識泉源守護聖獸',
     element: 'nature',
@@ -168,7 +177,7 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     elementIcon: <Trees className="h-4 w-4 text-emerald-400" />,
   },
   {
-    id: 'ultimate_thunder_falcon',
+    id: 'preview_ultimate_thunder',
     name: '宙斯雷霆天鷹 (傳奇完全體)',
     title: '風暴神域統御者',
     element: 'thunder',
@@ -212,7 +221,7 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     elementIcon: <Zap className="h-4 w-4 text-amber-400" />,
   },
   {
-    id: 'ultimate_radiant_unicorn',
+    id: 'preview_ultimate_radiant',
     name: '輝光聖翼獨角獸 (神話終極)',
     title: '晨曦破曉救贖者',
     element: 'radiant',
@@ -256,7 +265,7 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     elementIcon: <Sun className="h-4 w-4 text-rose-400" />,
   },
   {
-    id: 'ultimate_void_cat',
+    id: 'preview_ultimate_void',
     name: '虛空暗夜噬魂貓 (史詩終極)',
     title: '深淵星夜領主',
     element: 'void',
@@ -299,19 +308,316 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     lore: '誕生於夜深人靜專注時刻的幽冥神獸，最喜歡一口吞噬使用者的背誦盲點與錯題。',
     elementIcon: <Moon className="h-4 w-4 text-purple-400" />,
   },
+
+  // --- 6 EARLY & JUVENILE PET FORMS ---
+  {
+    id: 'preview_egg_genesis',
+    name: '起源神秘星蛋',
+    title: '初醒之卵',
+    element: 'nature',
+    stage: 'egg',
+    rarity: 'common',
+    level: 1,
+    exp: 0,
+    maxExp: 100,
+    mood: 'happy',
+    hunger: 90,
+    health: 100,
+    cleanliness: 100,
+    personality: '溫和好奇',
+    stats: { intelligence: 20, endurance: 20, speed: 20 },
+    genes: {
+      element: 'nature',
+      pattern: 'aurora',
+      horns: 'none',
+      wings: 'none',
+      particle: 'sparkles',
+      primaryColor: '#10B981',
+      secondaryColor: '#059669',
+      glowColor: '#6EE7B7',
+    },
+    customization: {
+      hat: 'none',
+      accessory: 'none',
+      backgroundTheme: 'forest',
+    },
+    speciesId: 'p_egg_genesis',
+    daysUnreviewed: 0,
+    lastFedAt: new Date().toISOString(),
+    lastActiveAt: new Date().toISOString(),
+    hatchedAt: '',
+    wordsLearnedCount: 0,
+    evolutionPower: 100,
+    specialTrait: '孵化衝刺：每完成 5 個單字複習，裂痕加深！',
+    talent: '【語彙破殼】',
+    talentDesc: '完成初始學習任務即可隨機破殼誕生火、冰、森任一神獸幼體！',
+    lore: '沈睡在語意矩陣中心的起源星蛋，表面烙印著古老單字符文。',
+    elementIcon: <Sparkles className="h-4 w-4 text-emerald-400" />,
+  },
+  {
+    id: 'preview_fire_dragon_1',
+    name: '熾焰火蜥幼體',
+    title: '火系幼年初階',
+    element: 'flame',
+    stage: 'baby',
+    rarity: 'common',
+    level: 8,
+    exp: 450,
+    maxExp: 600,
+    mood: 'happy',
+    hunger: 85,
+    health: 100,
+    cleanliness: 100,
+    personality: '熱情活潑',
+    stats: { intelligence: 45, endurance: 40, speed: 50 },
+    genes: {
+      element: 'flame',
+      pattern: 'plain',
+      horns: 'none',
+      wings: 'none',
+      particle: 'fire',
+      primaryColor: '#F97316',
+      secondaryColor: '#EF4444',
+      glowColor: '#FBBF24',
+    },
+    customization: {
+      hat: 'none',
+      accessory: 'none',
+      backgroundTheme: 'volcano',
+    },
+    speciesId: 'p_fire_dragon_1',
+    daysUnreviewed: 0,
+    lastFedAt: new Date().toISOString(),
+    lastActiveAt: new Date().toISOString(),
+    hatchedAt: new Date().toISOString(),
+    wordsLearnedCount: 40,
+    evolutionPower: 200,
+    specialTrait: '初學者熱火：背誦單字時尾巴冒出火花',
+    talent: '【火花共鳴】',
+    talentDesc: '連續答對 3 題獲得小額額外經驗值！',
+    lore: '誕生於初學者熱忱之火的靈獸幼雛，喜歡溫暖的餅乾與飼料。',
+    elementIcon: <Flame className="h-4 w-4 text-orange-400" />,
+  },
+  {
+    id: 'preview_frost_fox_1',
+    name: '霜晶小狐',
+    title: '冰系幼年初階',
+    element: 'frost',
+    stage: 'baby',
+    rarity: 'common',
+    level: 8,
+    exp: 420,
+    maxExp: 600,
+    mood: 'happy',
+    hunger: 80,
+    health: 100,
+    cleanliness: 100,
+    personality: '冰雪冷靜',
+    stats: { intelligence: 52, endurance: 40, speed: 45 },
+    genes: {
+      element: 'frost',
+      pattern: 'plain',
+      horns: 'crystal',
+      wings: 'none',
+      particle: 'snowflakes',
+      primaryColor: '#38BDF8',
+      secondaryColor: '#0284C7',
+      glowColor: '#BAE6FD',
+    },
+    customization: {
+      hat: 'none',
+      accessory: 'none',
+      backgroundTheme: 'cosmic',
+    },
+    speciesId: 'p_frost_fox_1',
+    daysUnreviewed: 0,
+    lastFedAt: new Date().toISOString(),
+    lastActiveAt: new Date().toISOString(),
+    hatchedAt: new Date().toISOString(),
+    wordsLearnedCount: 38,
+    evolutionPower: 200,
+    specialTrait: '凝神專注：錯誤率較低時獲得親密度提升',
+    talent: '【凝霜思維】',
+    talentDesc: '單字辨析測驗有微弱提示輔助。',
+    lore: '擁有雪白絨毛與冰晶耳朵的小狐狸，眼神清澈冷靜。',
+    elementIcon: <Snowflake className="h-4 w-4 text-cyan-400" />,
+  },
+  {
+    id: 'preview_nature_deer_1',
+    name: '翡翠森幼鹿',
+    title: '森系幼年初階',
+    element: 'nature',
+    stage: 'baby',
+    rarity: 'common',
+    level: 8,
+    exp: 480,
+    maxExp: 600,
+    mood: 'happy',
+    hunger: 90,
+    health: 100,
+    cleanliness: 100,
+    personality: '溫和親近',
+    stats: { intelligence: 48, endurance: 48, speed: 42 },
+    genes: {
+      element: 'nature',
+      pattern: 'plain',
+      horns: 'crystal',
+      wings: 'none',
+      particle: 'sparkles',
+      primaryColor: '#10B981',
+      secondaryColor: '#059669',
+      glowColor: '#6EE7B7',
+    },
+    customization: {
+      hat: 'none',
+      accessory: 'none',
+      backgroundTheme: 'forest',
+    },
+    speciesId: 'p_nature_deer_1',
+    daysUnreviewed: 0,
+    lastFedAt: new Date().toISOString(),
+    lastActiveAt: new Date().toISOString(),
+    hatchedAt: new Date().toISOString(),
+    wordsLearnedCount: 45,
+    evolutionPower: 200,
+    specialTrait: '翠玉生長：生命力自然回覆速度加快',
+    talent: '【森林庇佑】',
+    talentDesc: '飢餓度衰減速度降低 20%。',
+    lore: '頭頂長出嫩綠水晶小角的小鹿，親和大自然生機。',
+    elementIcon: <Trees className="h-4 w-4 text-emerald-400" />,
+  },
+  {
+    id: 'preview_fire_dragon_2',
+    name: '烈焰翼龍 (完全體)',
+    title: '烈火展翼者',
+    element: 'flame',
+    stage: 'adult',
+    rarity: 'rare',
+    level: 25,
+    exp: 2800,
+    maxExp: 3500,
+    mood: 'happy',
+    hunger: 90,
+    health: 100,
+    cleanliness: 100,
+    personality: '勇猛狂烈',
+    stats: { intelligence: 78, endurance: 75, speed: 82 },
+    genes: {
+      element: 'flame',
+      pattern: 'striped',
+      horns: 'dragon',
+      wings: 'dragon',
+      particle: 'fire',
+      primaryColor: '#EA580C',
+      secondaryColor: '#C2410C',
+      glowColor: '#FBBF24',
+    },
+    customization: {
+      hat: 'none',
+      accessory: 'none',
+      backgroundTheme: 'volcano',
+    },
+    speciesId: 'p_fire_dragon_2',
+    daysUnreviewed: 0,
+    lastFedAt: new Date().toISOString(),
+    lastActiveAt: new Date().toISOString(),
+    hatchedAt: new Date().toISOString(),
+    wordsLearnedCount: 350,
+    evolutionPower: 550,
+    specialTrait: '烈焰雙翼：單字複習速度加成',
+    talent: '【烈火連擊】',
+    talentDesc: '連勝次數增加時可額外獲得 15% 金幣。',
+    lore: '體型成長為幼體的兩倍，背部長出燃燒的火紅雙翼。',
+    elementIcon: <Flame className="h-4 w-4 text-orange-400" />,
+  },
+  {
+    id: 'preview_cyber_mecha',
+    name: '量子神經機械龍 (神話變異)',
+    title: '超維度矩陣支配者',
+    element: 'cyber',
+    stage: 'ultimate',
+    rarity: 'mythic',
+    level: 50,
+    exp: 9999,
+    maxExp: 10000,
+    mood: 'ecstatic',
+    hunger: 100,
+    health: 100,
+    cleanliness: 100,
+    personality: '精密計算',
+    stats: { intelligence: 100, endurance: 97, speed: 99 },
+    genes: {
+      element: 'cyber',
+      pattern: 'neon',
+      horns: 'cyber_antennae',
+      wings: 'mecha',
+      particle: 'neon_grid',
+      primaryColor: '#06B6D4',
+      secondaryColor: '#0891B2',
+      glowColor: '#67E8F9',
+    },
+    customization: {
+      hat: 'headphones',
+      accessory: 'star_badge',
+      backgroundTheme: 'cyberpunk',
+    },
+    speciesId: 'p_cyber_mecha_ultimate',
+    daysUnreviewed: 0,
+    lastFedAt: new Date().toISOString(),
+    lastActiveAt: new Date().toISOString(),
+    hatchedAt: new Date().toISOString(),
+    wordsLearnedCount: 1600,
+    evolutionPower: 999,
+    specialTrait: '量子記憶矩陣：測驗全對時觸發全螢幕光效！',
+    talent: '【量子運算】',
+    talentDesc: '間隔重複演算法最優化，複習效率提高 30%！',
+    lore: '透過跨屬性禁忌變異合成的超維度機械神獸，藍色霓虹羽翼與量子光軌令人驚嘆。',
+    elementIcon: <Bot className="h-4 w-4 text-cyan-400" />,
+  },
 ];
 
 export const BestiaryModal: React.FC<BestiaryModalProps> = ({
   unlockedSpecies,
   isOpen,
   onClose,
+  onSelectPet,
+  currentPetId,
 }) => {
   const [activeTab, setActiveTab] = useState<'showcase' | 'bestiary'>('showcase');
-  const [selectedGalleryPetIndex, setSelectedGalleryPetIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   if (!isOpen) return null;
 
-  const currentShowcasePet = ULTIMATE_PETS_GALLERY[selectedGalleryPetIndex] || ULTIMATE_PETS_GALLERY[0];
+  const currentPet = ALL_SHOWCASE_PETS[selectedIndex] || ALL_SHOWCASE_PETS[0];
+
+  const handleSelectPetIndex = (idx: number) => {
+    soundFx.playTap();
+    setSelectedIndex(idx);
+    confetti({ particleCount: 25, spread: 50, origin: { y: 0.6 } });
+  };
+
+  const handlePrevPet = () => {
+    soundFx.playTap();
+    setSelectedIndex(prev => (prev > 0 ? prev - 1 : ALL_SHOWCASE_PETS.length - 1));
+  };
+
+  const handleNextPet = () => {
+    soundFx.playTap();
+    setSelectedIndex(prev => (prev < ALL_SHOWCASE_PETS.length - 1 ? prev + 1 : 0));
+  };
+
+  // Switch to showcase and preview a specific species from bestiary list
+  const handlePreviewSpeciesFromBestiary = (speciesId: string) => {
+    soundFx.playTap();
+    const foundIdx = ALL_SHOWCASE_PETS.findIndex(p => p.speciesId === speciesId);
+    if (foundIdx !== -1) {
+      setSelectedIndex(foundIdx);
+    } else {
+      setSelectedIndex(0);
+    }
+    setActiveTab('showcase');
+    confetti({ particleCount: 30, spread: 60, origin: { y: 0.6 } });
+  };
 
   const rarityBadge = (rarity: PetRarity) => {
     const map = {
@@ -332,15 +638,9 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
     unlockedSpecies.includes(entry.speciesId)
   ).length;
 
-  const handleSelectPet = (idx: number) => {
-    soundFx.playTap();
-    setSelectedGalleryPetIndex(idx);
-    confetti({ particleCount: 30, spread: 60, origin: { y: 0.6 } });
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-3xl max-h-[92vh] overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 p-4 sm:p-6 shadow-2xl flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl max-h-[94vh] overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 p-4 sm:p-6 shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2.5">
@@ -349,16 +649,17 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
             </div>
             <div>
               <h3 className="text-xl font-bold font-fun text-white flex items-center gap-2">
-                神獸終極形態與圖鑑全覽
+                神獸圖鑑與全形態展示館
               </h3>
               <p className="text-xs text-slate-400">
-                預覽最終成長神獸的華麗姿態、動態星軌光環與專屬天賦
+                點選任意寵物查看高精度立體動態、天賦技能與進化樹
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="rounded-full p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -367,32 +668,34 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
         {/* Tab Switcher */}
         <div className="mt-3 flex items-center gap-2 p-1 bg-slate-950/70 border border-slate-800 rounded-2xl">
           <button
+            type="button"
             onClick={() => {
               soundFx.playTap();
               setActiveTab('showcase');
             }}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
               activeTab === 'showcase'
                 ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
             }`}
           >
             <Crown className="h-4 w-4" />
-            👑 終極形態立體展示 (全 6 大終極體)
+            👑 立體模型全覽 ({ALL_SHOWCASE_PETS.length} 隻可選)
           </button>
           <button
+            type="button"
             onClick={() => {
               soundFx.playTap();
               setActiveTab('bestiary');
             }}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
               activeTab === 'bestiary'
                 ? 'bg-indigo-600 text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
             }`}
           >
             <BookOpen className="h-4 w-4" />
-            📜 全圖鑑物種清單 ({unlockedCount}/{BESTIARY_DATA.length})
+            📜 全圖鑑解鎖清單 ({unlockedCount}/{BESTIARY_DATA.length})
           </button>
         </div>
 
@@ -400,47 +703,86 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
         <div className="flex-1 overflow-y-auto mt-4 pr-1">
           {activeTab === 'showcase' ? (
             <div className="space-y-4">
-              {/* Pet Selector Chips */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-                {ULTIMATE_PETS_GALLERY.map((item, idx) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handleSelectPet(idx)}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
-                      selectedGalleryPetIndex === idx
-                        ? 'bg-slate-800 border-amber-400 text-amber-300 shadow-md scale-105'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                    }`}
-                  >
-                    {item.elementIcon}
-                    <span>{item.name.split(' ')[0]}</span>
-                    {selectedGalleryPetIndex === idx && (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-amber-400" />
-                    )}
-                  </button>
-                ))}
+              {/* Pet Selection Grid / Chips (Fully visible without horizontal cutoff) */}
+              <div>
+                <div className="text-xs font-bold text-slate-400 mb-2 flex items-center justify-between">
+                  <span>點擊下方任一寵物卡片切換預覽：</span>
+                  <span className="text-amber-400 font-normal text-[11px]">
+                    第 {selectedIndex + 1} / {ALL_SHOWCASE_PETS.length} 隻
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                  {ALL_SHOWCASE_PETS.map((item, idx) => {
+                    const isSelected = selectedIndex === idx;
+                    return (
+                      <button
+                        type="button"
+                        key={item.id}
+                        onClick={() => handleSelectPetIndex(idx)}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left border cursor-pointer ${
+                          isSelected
+                            ? 'bg-slate-800 border-amber-400 text-amber-300 shadow-md ring-2 ring-amber-400/40 scale-[1.02]'
+                            : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                        }`}
+                      >
+                        <span className="shrink-0">{item.elementIcon}</span>
+                        <span className="truncate">{item.name.split(' ')[0]}</span>
+                        {isSelected && (
+                          <CheckCircle2 className="h-3 w-3 text-amber-400 shrink-0 ml-auto" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Main Stage Display Card */}
-              <div className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-b from-slate-900 to-slate-950 p-5 sm:p-6 shadow-2xl flex flex-col md:flex-row items-center gap-6">
+              <div className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-b from-slate-900 to-slate-950 p-4 sm:p-6 shadow-2xl flex flex-col md:flex-row items-center gap-6">
                 {/* Radial Glow Effect */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(245,158,11,0.15),transparent_60%)] pointer-events-none" />
 
-                {/* Animated Pet Canvas Box with Expanded Breathable Space */}
+                {/* Animated Pet Canvas Box with Expanded Breathable Space & Prev/Next Arrows */}
                 <div className="relative w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 flex-shrink-0 flex items-center justify-center p-2 rounded-3xl bg-slate-950/70 border border-slate-800/80 shadow-inner overflow-visible group">
-                  <PetCanvas pet={currentShowcasePet} size="hero" />
-                  
+                  {/* Left Prev Arrow Button */}
+                  <button
+                    type="button"
+                    onClick={handlePrevPet}
+                    className="absolute -left-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 shadow-lg cursor-pointer transition-transform active:scale-90"
+                    title="上一隻寵物"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+
+                  {/* Right Next Arrow Button */}
+                  <button
+                    type="button"
+                    onClick={handleNextPet}
+                    className="absolute -right-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 shadow-lg cursor-pointer transition-transform active:scale-90"
+                    title="下一隻寵物"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+
+                  {/* 3D/Canvas Pet */}
+                  <PetCanvas pet={currentPet} size="hero" />
+
                   {/* Stage badge */}
-                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] font-black flex items-center gap-1">
+                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] font-black flex items-center gap-1 z-20">
                     <Sparkles className="h-3 w-3 animate-spin" style={{ animationDuration: '4s' }} />
-                    終極神話體 (Lv.50 MAX)
+                    {currentPet.stage === 'ultimate'
+                      ? '終極神話體'
+                      : currentPet.stage === 'adult'
+                      ? '完全體'
+                      : currentPet.stage === 'baby'
+                      ? '幼年體'
+                      : '起源蛋'}
                   </div>
 
                   {/* Elemental Tag */}
-                  <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-slate-900/90 border border-slate-700 text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                    {currentShowcasePet.elementIcon}
+                  <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-slate-900/90 border border-slate-700 text-xs font-bold text-slate-300 flex items-center gap-1.5 z-20">
+                    {currentPet.elementIcon}
                     <span className="uppercase text-[10px] tracking-wider">
-                      {currentShowcasePet.element}
+                      {currentPet.element}
                     </span>
                   </div>
                 </div>
@@ -449,73 +791,59 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                 <div className="flex-1 space-y-3 w-full">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-950 border border-rose-500/50 text-rose-300">
-                        MYTHIC ULTIMATE
-                      </span>
+                      {rarityBadge(currentPet.rarity)}
                       <span className="text-xs text-amber-400 font-bold">
                         ★ ★ ★ ★ ★
                       </span>
                     </div>
                     <h4 className="text-2xl font-black font-fun text-white mt-1">
-                      {currentShowcasePet.name}
+                      {currentPet.name}
                     </h4>
                     <p className="text-xs text-amber-300/80 font-medium">
-                      称号：{currentShowcasePet.title}
+                      称号：{currentPet.title}
                     </p>
                   </div>
 
                   {/* Lore Description */}
-                  <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 text-xs text-slate-300 leading-relaxed">
-                    {currentShowcasePet.lore}
+                  <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                    {currentPet.lore}
                   </div>
 
                   {/* Talent Banner */}
-                  <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/40 to-slate-900 border border-amber-500/40 flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                  <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-950/40 to-slate-900 border border-amber-500/40 flex items-start gap-3">
+                    <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
                       <Sparkles className="h-4 w-4" />
                     </div>
                     <div>
                       <div className="text-xs font-black text-amber-300">
-                        專屬終極天賦：{currentShowcasePet.talent}
+                        專屬天賦：{currentPet.talent}
                       </div>
                       <div className="text-[11px] text-slate-300 mt-0.5">
-                        {currentShowcasePet.talentDesc}
+                        {currentPet.talentDesc}
                       </div>
                     </div>
                   </div>
 
-                  {/* Gene Traits Overview */}
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    <div className="p-2 rounded-xl bg-slate-950/50 border border-slate-800/80">
-                      <span className="text-[10px] text-slate-400 block">翅膀型態</span>
-                      <span className="font-bold text-slate-200">
-                        {currentShowcasePet.genes.wings === 'dragon' ? '日蝕龍翼' : currentShowcasePet.genes.wings === 'mecha' ? '機甲雷翼' : '純白羽翼'}
-                      </span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-slate-950/50 border border-slate-800/80">
-                      <span className="text-[10px] text-slate-400 block">星軌光環</span>
-                      <span className="font-bold text-slate-200">四星天體天軌</span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-slate-950/50 border border-slate-800/80">
-                      <span className="text-[10px] text-slate-400 block">基因紋路</span>
-                      <span className="font-bold text-slate-200">遠古語彙符文</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tips on Evolution */}
-              <div className="p-3.5 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 flex items-center justify-between text-xs text-indigo-300">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-indigo-400" />
-                  <span>
-                    如何培育出終極形態？每日持續完成 SRS 間隔複習累積親密度與經驗值，升級至完全體後使用「基因突變實驗室」即可進化為神話變異體！
-                  </span>
+                  {/* Action: Adopt / Set as active companion */}
+                  {onSelectPet && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundFx.playHatch();
+                        onSelectPet(currentPet);
+                        confetti({ particleCount: 80, spread: 80, origin: { y: 0.5 } });
+                      }}
+                      className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 py-2.5 px-4 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer active:scale-95"
+                    >
+                      <HeartHandshake className="h-4 w-4" />
+                      設為當前出戰 / 陪伴寵物
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           ) : (
-            /* Standard Bestiary Grid */
+            /* Standard Bestiary Grid (with Instant 3D Preview Buttons) */
             <div className="space-y-3">
               {/* Progress Bar Header */}
               <div className="rounded-2xl bg-slate-950/60 p-4 border border-slate-800 flex items-center justify-between">
@@ -540,6 +868,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                 </div>
               </div>
 
+              {/* Pet Cards with Click to Preview */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {BESTIARY_DATA.map(item => {
                   const isUnlocked = unlockedSpecies.includes(item.speciesId);
@@ -547,16 +876,17 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                   return (
                     <div
                       key={item.speciesId}
-                      className={`rounded-2xl border p-4 transition-all ${
+                      onClick={() => handlePreviewSpeciesFromBestiary(item.speciesId)}
+                      className={`group rounded-2xl border p-4 transition-all cursor-pointer relative overflow-hidden ${
                         isUnlocked
-                          ? 'border-slate-700/80 bg-slate-800/40 hover:border-indigo-500/50'
-                          : 'border-slate-800/60 bg-slate-950/40 opacity-70'
+                          ? 'border-slate-700/80 bg-slate-800/40 hover:border-amber-500/60 hover:bg-slate-800/80 hover:shadow-lg'
+                          : 'border-slate-800/60 bg-slate-950/40 hover:border-slate-700 hover:bg-slate-900/60'
                       }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
                           <div
-                            className={`h-12 w-12 rounded-2xl flex items-center justify-center text-2xl border ${
+                            className={`h-12 w-12 rounded-2xl flex items-center justify-center text-2xl border transition-transform group-hover:scale-110 ${
                               isUnlocked
                                 ? 'bg-slate-800 border-indigo-500/30'
                                 : 'bg-slate-900 border-slate-800 text-slate-600'
@@ -565,8 +895,8 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                             {isUnlocked ? item.iconSymbol : <Lock className="h-5 w-5 text-slate-500" />}
                           </div>
                           <div>
-                            <h4 className="text-sm font-bold text-white">
-                              {isUnlocked ? item.name : '??? 未知封印神獸'}
+                            <h4 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+                              {isUnlocked ? item.name : '??? 待解鎖神獸'}
                             </h4>
                             <div className="mt-1 flex items-center gap-1.5">
                               {rarityBadge(item.rarity)}
@@ -576,6 +906,12 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                             </div>
                           </div>
                         </div>
+
+                        {/* Preview Chip */}
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 group-hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all">
+                          <Eye className="h-3 w-3" />
+                          點擊預覽
+                        </span>
                       </div>
 
                       <p className="mt-3 text-xs text-slate-300 leading-relaxed">

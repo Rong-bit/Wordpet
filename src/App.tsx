@@ -606,6 +606,21 @@ export default function App() {
         unlockedSpecies={unlockedSpecies}
         isOpen={showBestiary}
         onClose={() => setShowBestiary(false)}
+        currentPetId={pet.speciesId}
+        onSelectPet={selectedPet => {
+          setAppState(prev => ({
+            ...prev,
+            pet: {
+              ...selectedPet,
+              id: `pet_${Date.now()}`,
+              daysUnreviewed: 0,
+              lastFedAt: new Date().toISOString(),
+              lastActiveAt: new Date().toISOString(),
+            },
+            unlockedSpecies: Array.from(new Set([...prev.unlockedSpecies, selectedPet.speciesId])),
+          }));
+          setShowBestiary(false);
+        }}
       />
 
       <InventoryModal
