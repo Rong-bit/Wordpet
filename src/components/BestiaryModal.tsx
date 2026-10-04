@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BestiaryEntry, PetRarity, Pet, PetAccessory } from '../types';
+import { BestiaryEntry, PetRarity, Pet } from '../types';
 import { BESTIARY_DATA } from '../data/bestiary';
 import { PetCanvas } from './PetCanvas';
 import { soundFx } from '../utils/sound';
@@ -41,6 +41,7 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     title: '日珥天體霸主',
     element: 'flame',
     stage: 'ultimate',
+    rarity: 'legendary',
     level: 50,
     exp: 9999,
     maxExp: 10000,
@@ -48,25 +49,31 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     hunger: 100,
     health: 100,
     cleanliness: 100,
-    lastFed: Date.now(),
-    lastCleaned: Date.now(),
     personality: '狂熱霸氣',
     stats: { intelligence: 98, endurance: 95, speed: 99 },
     genes: {
-      baseElement: 'flame',
-      colorShift: '#EF4444',
-      secondaryColor: '#B45309',
-      pattern: 'runes',
-      ears: 'dragon_horns',
+      element: 'flame',
+      pattern: 'runic',
+      horns: 'dragon',
       wings: 'dragon',
-      tail: 'fire_plume',
-      horns: 'crescent',
+      particle: 'fire',
+      primaryColor: '#EF4444',
+      secondaryColor: '#B45309',
+      glowColor: '#FBBF24',
     },
-    accessory: 'crown',
+    customization: {
+      hat: 'crown',
+      accessory: 'cape',
+      backgroundTheme: 'volcano',
+    },
     speciesId: 'p_fire_ultimate',
     daysUnreviewed: 0,
+    lastFedAt: new Date().toISOString(),
     lastActiveAt: new Date().toISOString(),
+    hatchedAt: new Date().toISOString(),
     wordsLearnedCount: 1500,
+    evolutionPower: 999,
+    specialTrait: '過目不忘：經驗與金幣永久提升 +25%',
     talent: '【過目不忘】',
     talentDesc: '背誦單字獲得的經驗值與金幣永久提升 +25%！',
     lore: '歷經極限連勝考驗所誕生的終極烈焰神龍，羽翼如天體日珥般熾熱，周圍環繞著燃燒星軌。',
@@ -78,6 +85,7 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     title: '極光守護仙靈',
     element: 'frost',
     stage: 'ultimate',
+    rarity: 'legendary',
     level: 50,
     exp: 9999,
     maxExp: 10000,
@@ -85,25 +93,31 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     hunger: 100,
     health: 100,
     cleanliness: 100,
-    lastFed: Date.now(),
-    lastCleaned: Date.now(),
     personality: '冰雪冷靜',
     stats: { intelligence: 100, endurance: 96, speed: 94 },
     genes: {
-      baseElement: 'frost',
-      colorShift: '#38BDF8',
+      element: 'frost',
+      pattern: 'aurora',
+      horns: 'crystal',
+      wings: 'fairy',
+      particle: 'snowflakes',
+      primaryColor: '#38BDF8',
       secondaryColor: '#0284C7',
-      pattern: 'nebula',
-      ears: 'crystal',
-      wings: 'feathered',
-      tail: 'kitsune',
-      horns: 'crescent',
+      glowColor: '#BAE6FD',
     },
-    accessory: 'halo',
+    customization: {
+      hat: 'none',
+      accessory: 'none',
+      backgroundTheme: 'cosmic',
+    },
     speciesId: 'p_frost_ultimate',
     daysUnreviewed: 0,
+    lastFedAt: new Date().toISOString(),
     lastActiveAt: new Date().toISOString(),
+    hatchedAt: new Date().toISOString(),
     wordsLearnedCount: 1500,
+    evolutionPower: 999,
+    specialTrait: '記憶凝凍：每日自動提供連續打卡保護盾',
     talent: '【記憶凝凍】',
     talentDesc: '每日自動提供記憶保護盾，忘記複習也不會中斷打卡連勝！',
     lore: '吸收北極光靈氣昇華的至高神狐，九道冰晶尾羽能凍結遺忘時間，守護學習者的連續記憶。',
@@ -115,6 +129,7 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     title: '知識泉源守護聖獸',
     element: 'nature',
     stage: 'ultimate',
+    rarity: 'mythic',
     level: 50,
     exp: 9999,
     maxExp: 10000,
@@ -122,28 +137,34 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     hunger: 100,
     health: 100,
     cleanliness: 100,
-    lastFed: Date.now(),
-    lastCleaned: Date.now(),
     personality: '溫和博學',
     stats: { intelligence: 97, endurance: 100, speed: 92 },
     genes: {
-      baseElement: 'nature',
-      colorShift: '#10B981',
+      element: 'nature',
+      pattern: 'striped',
+      horns: 'crystal',
+      wings: 'fairy',
+      particle: 'sparkles',
+      primaryColor: '#10B981',
       secondaryColor: '#047857',
-      pattern: 'stripes',
-      ears: 'antlers',
-      wings: 'feathered',
-      tail: 'leaf_bush',
-      horns: 'antlers',
+      glowColor: '#6EE7B7',
     },
-    accessory: 'scarf',
+    customization: {
+      hat: 'none',
+      accessory: 'none',
+      backgroundTheme: 'forest',
+    },
     speciesId: 'p_nature_ultimate',
     daysUnreviewed: 0,
+    lastFedAt: new Date().toISOString(),
     lastActiveAt: new Date().toISOString(),
+    hatchedAt: new Date().toISOString(),
     wordsLearnedCount: 1500,
+    evolutionPower: 999,
+    specialTrait: '生生不息：30% 機率爆擊獲得雙倍結晶與飼料',
     talent: '【生生不息】',
     talentDesc: '複習單字時有 30% 機率爆擊獲得雙倍靈魂結晶與飼料！',
-    lore: '頭頂翡翠世界之樹巨角，蘊含著龐大生機與知識之泉，能散發治癒心靈的溫暖綠芒。',
+    lore: '頭頂翡翠世界之樹神角，蘊含著龐大生機與知識之泉，能散發治癒心靈的溫暖綠芒。',
     elementIcon: <Trees className="h-4 w-4 text-emerald-400" />,
   },
   {
@@ -152,6 +173,7 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     title: '風暴神域統御者',
     element: 'thunder',
     stage: 'ultimate',
+    rarity: 'legendary',
     level: 50,
     exp: 9999,
     maxExp: 10000,
@@ -159,25 +181,31 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     hunger: 100,
     health: 100,
     cleanliness: 100,
-    lastFed: Date.now(),
-    lastCleaned: Date.now(),
     personality: '迅捷敏銳',
     stats: { intelligence: 95, endurance: 93, speed: 100 },
     genes: {
-      baseElement: 'thunder',
-      colorShift: '#FBBF24',
-      secondaryColor: '#B45309',
-      pattern: 'circuit',
-      ears: 'mecha_fin',
+      element: 'thunder',
+      pattern: 'neon',
+      horns: 'cyber_antennae',
       wings: 'mecha',
-      tail: 'lightning_spark',
-      horns: 'straight',
+      particle: 'lightning',
+      primaryColor: '#F59E0B',
+      secondaryColor: '#D97706',
+      glowColor: '#FEF08A',
     },
-    accessory: 'glasses',
+    customization: {
+      hat: 'sunglasses',
+      accessory: 'star_badge',
+      backgroundTheme: 'cyberpunk',
+    },
     speciesId: 'p_thunder_falcon_1',
     daysUnreviewed: 0,
+    lastFedAt: new Date().toISOString(),
     lastActiveAt: new Date().toISOString(),
+    hatchedAt: new Date().toISOString(),
     wordsLearnedCount: 1500,
+    evolutionPower: 999,
+    specialTrait: '雷霆直覺：急速測驗倒數時間額外延長 5 秒',
     talent: '【雷霆直覺】',
     talentDesc: '急速測驗與盲聽測驗時答題倒數時間額外增加 5 秒！',
     lore: '金黃色機甲雷霆羽翼劃破天際，思維如閃電直擊目標，專門克服難解的生僻字詞。',
@@ -189,6 +217,7 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     title: '晨曦破曉救贖者',
     element: 'radiant',
     stage: 'ultimate',
+    rarity: 'mythic',
     level: 50,
     exp: 9999,
     maxExp: 10000,
@@ -196,25 +225,31 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     hunger: 100,
     health: 100,
     cleanliness: 100,
-    lastFed: Date.now(),
-    lastCleaned: Date.now(),
     personality: '純潔聖善',
     stats: { intelligence: 100, endurance: 98, speed: 98 },
     genes: {
-      baseElement: 'radiant',
-      colorShift: '#F472B6',
+      element: 'radiant',
+      pattern: 'aurora',
+      horns: 'angel_halo',
+      wings: 'fairy',
+      particle: 'stardust',
+      primaryColor: '#F472B6',
       secondaryColor: '#DB2777',
-      pattern: 'runes',
-      ears: 'angel_wings',
-      wings: 'feathered',
-      tail: 'starlight',
-      horns: 'straight',
+      glowColor: '#FBCFE8',
     },
-    accessory: 'halo',
+    customization: {
+      hat: 'none',
+      accessory: 'none',
+      backgroundTheme: 'heaven',
+    },
     speciesId: 'p_radiant_angel_1',
     daysUnreviewed: 0,
+    lastFedAt: new Date().toISOString(),
     lastActiveAt: new Date().toISOString(),
+    hatchedAt: new Date().toISOString(),
     wordsLearnedCount: 1500,
+    evolutionPower: 999,
+    specialTrait: '晨曦淨化：每日免費消除 5 個生疏詞錯誤紀錄',
     talent: '【晨曦淨化】',
     talentDesc: '每日可免費淨化並消除 5 個生疏頑固單字的錯誤紀錄！',
     lore: '只會在堅持連續學習的勇者身邊顯現，額前聖角與純白羽翼散發破曉晨光，驅散一切遺忘迷霧。',
@@ -226,6 +261,7 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     title: '深淵星夜領主',
     element: 'void',
     stage: 'ultimate',
+    rarity: 'epic',
     level: 50,
     exp: 9999,
     maxExp: 10000,
@@ -233,25 +269,31 @@ const ULTIMATE_PETS_GALLERY: UltimatePetGalleryItem[] = [
     hunger: 100,
     health: 100,
     cleanliness: 100,
-    lastFed: Date.now(),
-    lastCleaned: Date.now(),
     personality: '傲嬌幽秘',
     stats: { intelligence: 99, endurance: 96, speed: 99 },
     genes: {
-      baseElement: 'void',
-      colorShift: '#A855F7',
-      secondaryColor: '#581C87',
-      pattern: 'nebula',
-      ears: 'cat_ears',
+      element: 'void',
+      pattern: 'galaxy',
+      horns: 'dragon',
       wings: 'dragon',
-      tail: 'void_wisp',
-      horns: 'crescent',
+      particle: 'sparkles',
+      primaryColor: '#A855F7',
+      secondaryColor: '#581C87',
+      glowColor: '#E9D5FF',
     },
-    accessory: 'crown',
+    customization: {
+      hat: 'crown',
+      accessory: 'cape',
+      backgroundTheme: 'cosmic',
+    },
     speciesId: 'p_void_shadow_1',
     daysUnreviewed: 0,
+    lastFedAt: new Date().toISOString(),
     lastActiveAt: new Date().toISOString(),
+    hatchedAt: new Date().toISOString(),
     wordsLearnedCount: 1500,
+    evolutionPower: 999,
+    specialTrait: '暗夜吞噬：夜間複習金幣雙倍，自動標記盲點',
     talent: '【暗夜吞噬】',
     talentDesc: '夜晚複習時所有金幣獎勵翻倍，並自動標記高頻易混淆字！',
     lore: '誕生於夜深人靜專注時刻的幽冥神獸，最喜歡一口吞噬使用者的背誦盲點與錯題。',
@@ -269,7 +311,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
 
   if (!isOpen) return null;
 
-  const currentShowcasePet = ULTIMATE_PETS_GALLERY[selectedGalleryPetIndex];
+  const currentShowcasePet = ULTIMATE_PETS_GALLERY[selectedGalleryPetIndex] || ULTIMATE_PETS_GALLERY[0];
 
   const rarityBadge = (rarity: PetRarity) => {
     const map = {
@@ -298,7 +340,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-3xl max-h-[92vh] overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 p-5 sm:p-6 shadow-2xl flex flex-col">
+      <div className="relative w-full max-w-3xl max-h-[92vh] overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 p-4 sm:p-6 shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2.5">
@@ -380,12 +422,12 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
               </div>
 
               {/* Main Stage Display Card */}
-              <div className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-b from-slate-900 to-slate-950 p-6 shadow-2xl flex flex-col md:flex-row items-center gap-6">
+              <div className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-b from-slate-900 to-slate-950 p-5 sm:p-6 shadow-2xl flex flex-col md:flex-row items-center gap-6">
                 {/* Radial Glow Effect */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(245,158,11,0.15),transparent_60%)] pointer-events-none" />
 
                 {/* Animated Pet Canvas Box with Expanded Breathable Space */}
-                <div className="relative w-72 h-72 sm:w-80 sm:h-80 flex-shrink-0 flex items-center justify-center p-2 rounded-3xl bg-slate-950/70 border border-slate-800/80 shadow-inner overflow-visible group">
+                <div className="relative w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 flex-shrink-0 flex items-center justify-center p-2 rounded-3xl bg-slate-950/70 border border-slate-800/80 shadow-inner overflow-visible group">
                   <PetCanvas pet={currentShowcasePet} size="hero" />
                   
                   {/* Stage badge */}
@@ -447,7 +489,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                     <div className="p-2 rounded-xl bg-slate-950/50 border border-slate-800/80">
                       <span className="text-[10px] text-slate-400 block">翅膀型態</span>
                       <span className="font-bold text-slate-200">
-                        {currentShowcasePet.genes.wings === 'dragon' ? '日蝕龍翼' : currentShowcasePet.genes.wings === 'mecha' ? '機甲雷翼' : '純白天羽'}
+                        {currentShowcasePet.genes.wings === 'dragon' ? '日蝕龍翼' : currentShowcasePet.genes.wings === 'mecha' ? '機甲雷翼' : '純白羽翼'}
                       </span>
                     </div>
                     <div className="p-2 rounded-xl bg-slate-950/50 border border-slate-800/80">
