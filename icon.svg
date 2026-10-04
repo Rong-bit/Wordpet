@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="50%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="egg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#EF4444"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FDE047" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+  
+  <!-- Outer Glow -->
+  <circle cx="256" cy="256" r="180" fill="url(#glow)"/>
+
+  <!-- Halo Ring -->
+  <circle cx="256" cy="256" r="195" fill="none" stroke="#FDE047" stroke-width="6" stroke-dasharray="16 12" opacity="0.6"/>
+
+  <!-- Genesis Egg Silhouette -->
+  <path d="M 256,90 C 370,90 390,370 256,395 C 122,370 142,90 256,90 Z" fill="url(#egg)" stroke="#FEF08A" stroke-width="8"/>
+
+  <!-- Egg Lightning Crack -->
+  <path d="M 256,150 L 235,190 L 270,225 L 245,265 L 275,305" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Sparkles -->
+  <circle cx="150" cy="160" r="10" fill="#FDE047"/>
+  <circle cx="370" cy="180" r="8" fill="#FDE047"/>
+  <circle cx="340" cy="340" r="12" fill="#FDE047"/>
+  <circle cx="160" cy="320" r="9" fill="#FDE047"/>
+
+  <!-- WordPet Banner Monogram -->
+  <rect x="146" y="405" width="220" height="50" rx="25" fill="#0F172A" stroke="#818CF8" stroke-width="3"/>
+  <text x="256" y="438" font-family="system-ui, sans-serif" font-size="24" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="3">WORDPET</text>
+</svg>
