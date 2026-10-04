@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Word, Pet, Item, DailyQuest, Achievement, UserProfile } from './types';
 import { loadAppState, saveAppState, AppState } from './utils/storage';
+import { INITIAL_PET } from './data/bestiary';
 import { soundFx } from './utils/sound';
 import confetti from 'canvas-confetti';
 import { Navbar } from './components/Navbar';
@@ -607,6 +608,19 @@ export default function App() {
         isOpen={showBestiary}
         onClose={() => setShowBestiary(false)}
         currentPetId={pet.speciesId}
+        onResetToEgg={() => {
+          setAppState(prev => ({
+            ...prev,
+            pet: {
+              ...INITIAL_PET,
+              id: `pet_${Date.now()}`,
+              daysUnreviewed: 0,
+              lastFedAt: new Date().toISOString(),
+              lastActiveAt: new Date().toISOString(),
+            },
+          }));
+          setShowBestiary(false);
+        }}
         onUnlockAllSpecies={() => {
           setAppState(prev => ({
             ...prev,

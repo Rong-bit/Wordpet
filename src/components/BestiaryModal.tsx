@@ -32,6 +32,7 @@ interface BestiaryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectPet?: (pet: Pet) => void;
+  onResetToEgg?: () => void;
   onUnlockAllSpecies?: () => void;
   currentPetId?: string;
 }
@@ -583,6 +584,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
   isOpen,
   onClose,
   onSelectPet,
+  onResetToEgg,
   onUnlockAllSpecies,
   currentPetId,
 }) => {
@@ -843,22 +845,71 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
 
                   {/* Action: Adopt / Set as active companion */}
                   {onSelectPet && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        try {
-                          soundFx?.playHatch?.();
-                        } catch {}
-                        onSelectPet(currentPet);
-                        try {
-                          confetti({ particleCount: 80, spread: 80, origin: { y: 0.5 } });
-                        } catch {}
-                      }}
-                      className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 py-3 px-4 text-sm font-black text-slate-950 shadow-xl shadow-amber-500/20 transition-all cursor-pointer active:scale-95"
-                    >
-                      <HeartHandshake className="h-5 w-5" />
-                      💫 立即選定這隻神獸出戰（設為當前主寵物）
-                    </button>
+                    <div className="space-y-2 pt-1">
+                      {unlockedSpecies.includes(currentPet.speciesId) || currentPet.stage === 'egg' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              soundFx?.playHatch?.();
+                            } catch {}
+                            onSelectPet(currentPet);
+                            try {
+                              confetti({ particleCount: 80, spread: 80, origin: { y: 0.5 } });
+                            } catch {}
+                          }}
+                          className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 py-3 px-4 text-sm font-black text-slate-950 shadow-xl shadow-emerald-500/20 transition-all cursor-pointer active:scale-95"
+                        >
+                          <HeartHandshake className="h-5 w-5" />
+                          💫 選定這隻已解鎖神獸出戰
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800 text-xs text-slate-400">
+                            <span className="flex items-center gap-1.5 text-amber-400/90 font-bold">
+                              <Lock className="h-4 w-4" /> 冒險模式尚未解鎖
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              需從起源蛋培育進化解鎖
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try {
+                                soundFx?.playHatch?.();
+                              } catch {}
+                              onSelectPet(currentPet);
+                              try {
+                                confetti({ particleCount: 80, spread: 80, origin: { y: 0.5 } });
+                              } catch {}
+                            }}
+                            className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 py-2 px-3 text-xs font-semibold text-slate-400 hover:text-slate-200 border border-slate-700/60 transition-all cursor-pointer"
+                          >
+                            <span>🧪 沙盒測試模式：強行體驗此形態</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Reset back to Genesis Egg */}
+                      {onResetToEgg && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              soundFx?.playHatch?.();
+                            } catch {}
+                            onResetToEgg();
+                            try {
+                              confetti({ particleCount: 100, spread: 70, origin: { y: 0.5 } });
+                            } catch {}
+                          }}
+                          className="w-full flex items-center justify-center gap-2 rounded-2xl bg-slate-950/70 hover:bg-amber-500/10 border border-amber-500/30 py-2.5 px-4 text-xs font-bold text-amber-300 transition-all cursor-pointer"
+                        >
+                          <span>🥚 重新領取起源星蛋（重啟從蛋孵化培育的正統冒險之旅）</span>
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

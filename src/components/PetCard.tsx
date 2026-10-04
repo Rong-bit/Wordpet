@@ -178,6 +178,27 @@ export const PetCard: React.FC<PetCardProps> = ({
           </p>
         </div>
 
+        {/* EGG INCUBATION BANNER */}
+        {pet.stage === 'egg' && (
+          <div className="mb-4 flex items-center gap-3 rounded-2xl bg-indigo-500/10 p-3.5 border border-indigo-500/30 text-indigo-200">
+            <Sparkles className="h-5 w-5 shrink-0 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
+            <div className="text-xs">
+              <p className="font-bold text-white flex items-center gap-1.5">
+                <span>🥚</span> 起源星蛋孵化中（當前 Lv.{pet.level}）
+              </p>
+              <p className="opacity-90 text-[11px] mt-0.5 text-indigo-300">
+                完成一輪單字複習（累積經驗達 Lv.2），蛋殼即可破殼孵化，誕生專屬神獸幼體！
+              </p>
+            </div>
+            <button
+              onClick={onStartReview}
+              className="ml-auto shrink-0 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 px-3 py-1.5 text-xs font-bold text-slate-950 transition-colors shadow-md cursor-pointer"
+            >
+              開始背單字破殼
+            </button>
+          </div>
+        )}
+
         {/* INACTIVITY WARNING BANNER */}
         {pet.daysUnreviewed > 0 && (
           <div className="mb-4 flex items-center gap-3 rounded-2xl bg-amber-500/10 p-3.5 border border-amber-500/30 text-amber-200">
