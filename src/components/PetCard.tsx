@@ -77,7 +77,7 @@ export const PetCard: React.FC<PetCardProps> = ({
 
   return (
     <>
-      <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/80 p-5 sm:p-6 shadow-2xl backdrop-blur-xl transition-all">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-800 bg-slate-900/80 p-3.5 sm:p-6 shadow-2xl backdrop-blur-xl transition-all">
         {/* Ambient Element Glow in Card Background */}
         <div
           className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full opacity-20 blur-3xl"
@@ -145,7 +145,7 @@ export const PetCard: React.FC<PetCardProps> = ({
         </div>
 
         {/* Main Pet Stage Display (Spacious Sanctuary Pedestal) */}
-        <div className="relative my-4 flex flex-col items-center justify-center rounded-3xl bg-slate-950/40 border border-slate-800/60 p-4 sm:p-6 overflow-visible group">
+        <div className="relative my-2.5 sm:my-4 flex flex-col items-center justify-center rounded-2xl sm:rounded-3xl bg-slate-950/40 border border-slate-800/60 p-2 sm:p-6 overflow-visible group">
           {/* Floating Love Hearts on touch */}
           {touchHearts.map(timestamp => (
             <div

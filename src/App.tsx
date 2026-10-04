@@ -403,7 +403,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white pb-20 md:pb-10">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white pb-24 md:pb-10 overflow-x-hidden">
       {/* Top Navbar */}
       <Navbar
         currentTab={currentTab}
@@ -418,10 +418,10 @@ export default function App() {
       />
 
       {/* Main App Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 py-2.5 sm:py-6">
         {/* TAB 1: HOME & ADVENTURE DASHBOARD */}
         {currentTab === 'home' && (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Active Quiz Overlay if started */}
             {isQuizActive ? (
               <QuizSection
@@ -467,7 +467,7 @@ export default function App() {
                 {/* Right Column: Spaced Repetition Review Mission Center (7 cols) */}
                 <div className="lg:col-span-7 space-y-5">
                   {/* Hero Review Start Card */}
-                  <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-indigo-950/60 via-slate-900/90 to-purple-950/60 p-6 sm:p-7 shadow-2xl backdrop-blur-xl">
+                  <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-800 bg-gradient-to-br from-indigo-950/60 via-slate-900/90 to-purple-950/60 p-4 sm:p-7 shadow-2xl backdrop-blur-xl">
                     <div className="relative z-10">
                       <div className="inline-flex items-center gap-2 rounded-full bg-indigo-500/20 px-3 py-1 text-xs font-bold text-indigo-300 border border-indigo-500/30 mb-3">
                         <Zap className="h-3.5 w-3.5 text-amber-400" />

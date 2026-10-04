@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import { soundFx } from '../utils/sound';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -12,9 +12,10 @@ import {
   Backpack,
   Gift,
   Cloud,
-  Settings,
-  Sparkles,
   Home,
+  Menu,
+  X,
+  Sparkles,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -40,6 +41,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSync,
   dueWordsCount,
 }) => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const toggleSound = () => {
     const nextVal = !profile.soundEnabled;
     soundFx.setEnabled(nextVal);
@@ -57,20 +60,23 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/85 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/90 backdrop-blur-xl">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
         {/* Logo and Brand */}
         <div
-          onClick={() => onSelectTab('home')}
-          className="flex items-center gap-2.5 cursor-pointer select-none"
+          onClick={() => {
+            setIsMobileMenuOpen(false);
+            onSelectTab('home');
+          }}
+          className="flex items-center gap-2 sm:gap-2.5 cursor-pointer select-none shrink-0"
         >
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-600/30">
-            <span className="text-xl">🥚</span>
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-md sm:shadow-lg shadow-indigo-600/30 shrink-0">
+            <span className="text-base sm:text-xl">🥚</span>
           </div>
           <div>
-            <h1 className="text-lg font-bold font-fun tracking-wide text-white flex items-center gap-1.5">
+            <h1 className="text-base sm:text-lg font-bold font-fun tracking-wide text-white flex items-center gap-1 sm:gap-1.5">
               WordPet
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-sans border border-indigo-500/30">
+              <span className="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-300 font-sans border border-indigo-500/30">
                 SRS
               </span>
             </h1>
@@ -132,18 +138,15 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Right Quick Controls & Currencies */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* In-app install button */}
-          <PWAInstallButton compact />
-
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Streak indicator */}
-          <div className="flex items-center gap-1 rounded-xl bg-orange-500/10 border border-orange-500/30 px-2.5 py-1 text-xs font-bold text-orange-400">
+          <div className="flex items-center gap-1 rounded-xl bg-orange-500/10 border border-orange-500/30 px-2 sm:px-2.5 py-1 text-xs font-bold text-orange-400">
             <Flame className="h-3.5 w-3.5 fill-orange-500 text-orange-500" />
             <span>{profile.streakDays}</span>
             <span className="text-[10px] hidden sm:inline">天連勝</span>
           </div>
 
-          {/* Currencies */}
+          {/* Desktop Currencies */}
           <div className="hidden sm:flex items-center gap-2 rounded-xl bg-slate-900/80 border border-slate-800 px-2.5 py-1 text-xs font-semibold">
             <span className="text-amber-400 flex items-center gap-1">
               🪙 {profile.coins}
@@ -153,8 +156,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             </span>
           </div>
 
-          {/* Quick Action Modals Trigger */}
-          <div className="flex items-center gap-1">
+          {/* Desktop Quick Action Modals Trigger */}
+          <div className="hidden md:flex items-center gap-1">
+            <PWAInstallButton compact />
             <button
               onClick={onOpenBestiary}
               className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition-colors"
@@ -209,11 +213,128 @@ export const Navbar: React.FC<NavbarProps> = ({
               {profile.voiceGender === 'en-US' ? '美音 🇺🇸' : '英音 🇬🇧'}
             </button>
           </div>
+
+          {/* Mobile Quick Action Buttons (Single line, strictly no wrap) */}
+          <div className="flex md:hidden items-center gap-1.5">
+            <button
+              onClick={toggleSound}
+              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-colors"
+              title={profile.soundEnabled ? '關閉音效' : '開啟音效'}
+            >
+              {profile.soundEnabled ? (
+                <Volume2 className="h-4 w-4 text-indigo-400" />
+              ) : (
+                <VolumeX className="h-4 w-4 text-slate-500" />
+              )}
+            </button>
+
+            <button
+              onClick={onOpenInventory}
+              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-emerald-400 hover:text-emerald-300 transition-colors"
+              title="探險家背包"
+            >
+              <Backpack className="h-4 w-4" />
+            </button>
+
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className={`p-2 rounded-xl border transition-colors flex items-center justify-center ${
+                isMobileMenuOpen
+                  ? 'bg-rose-500/20 border-rose-500/40 text-rose-300'
+                  : 'bg-slate-900 border-slate-800 text-indigo-400 hover:text-white'
+              }`}
+              title="快捷功能選單"
+            >
+              {isMobileMenuOpen ? (
+                <X className="h-4 w-4" />
+              ) : (
+                <Menu className="h-4 w-4" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* Mobile Drawer Dropdown Sheet */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t border-slate-800 bg-slate-950/98 backdrop-blur-2xl px-4 py-3.5 space-y-2.5 animate-in slide-in-from-top-2 duration-200 shadow-2xl">
+          {/* User Currency & Pronunciation Summary */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
+            <div className="flex items-center gap-3">
+              <span className="text-amber-400 text-xs font-bold flex items-center gap-1">
+                🪙 {profile.coins}
+              </span>
+              <span className="text-sky-400 text-xs font-bold flex items-center gap-1">
+                💎 {profile.diamonds}
+              </span>
+            </div>
+            <button
+              onClick={toggleAccent}
+              className="px-2 py-0.5 rounded-lg bg-slate-800 text-xs font-bold text-slate-200 border border-slate-700 active:scale-95"
+            >
+              發音：{profile.voiceGender === 'en-US' ? '美式 🇺🇸' : '英式 🇬🇧'}
+            </button>
+          </div>
+
+          {/* Quick Menu Items Grid */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                onOpenBestiary();
+              }}
+              className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-left text-xs font-bold text-slate-200 active:scale-95 transition-all"
+            >
+              <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 shrink-0">
+                <BookOpen className="h-4 w-4" />
+              </div>
+              <div>
+                <div>神獸圖鑑</div>
+                <div className="text-[10px] text-slate-400 font-normal">全形態展示</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                onOpenAchievements();
+              }}
+              className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-left text-xs font-bold text-slate-200 active:scale-95 transition-all"
+            >
+              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
+                <Gift className="h-4 w-4" />
+              </div>
+              <div>
+                <div>任務成就</div>
+                <div className="text-[10px] text-slate-400 font-normal">領取獎勵</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                onOpenSync();
+              }}
+              className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-left text-xs font-bold text-slate-200 active:scale-95 transition-all"
+            >
+              <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 shrink-0">
+                <Cloud className="h-4 w-4" />
+              </div>
+              <div>
+                <div>雲端備份</div>
+                <div className="text-[10px] text-slate-400 font-normal">匯出與轉移</div>
+              </div>
+            </button>
+
+            <div className="flex items-center justify-center p-2 rounded-xl bg-slate-900/50 border border-slate-800">
+              <PWAInstallButton compact />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Bottom Navigation Bar (Fixed Native-like dock) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-slate-800/90 bg-slate-950/95 backdrop-blur-xl py-2.5 pb-[max(0.6rem,env(safe-area-inset-bottom))] shadow-2xl">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-slate-800/90 bg-slate-950/95 backdrop-blur-xl py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl">
         <button
           onClick={() => onSelectTab('home')}
           className={`flex flex-col items-center gap-1 text-[11px] font-bold px-3 py-1 rounded-xl transition-all ${
