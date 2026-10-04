@@ -1,0 +1,6 @@
+{
+  "name": "WordPet - 艾賓豪斯單字冒險與寵物進化",
+  "description": "結合艾賓豪斯遺忘曲線與間隔重複系統(SRS)的英文單字複習養成神器。孵化專屬基因神獸、每日複習餵養進化、多向測驗特訓、錯誤詳解、語音朗讀、圖鑑收集與社交排行榜！",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
