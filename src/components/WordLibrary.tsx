@@ -3,6 +3,13 @@ import { Word, WordCategory } from '../types';
 import { speakEnglish } from '../utils/tts';
 import { getVerbForms, getNounForms, detectPartOfSpeech } from '../utils/englishGrammar';
 import {
+  exportWordsToCSV,
+  exportWordsToJSON,
+  exportWordsToTXT,
+  downloadFile,
+  parseImportedContent,
+} from '../utils/wordImportExport';
+import {
   Search,
   Plus,
   Volume2,
@@ -16,11 +23,16 @@ import {
   Flame,
   Pencil,
   Trash2,
+  Download,
+  Upload,
+  FileText,
+  Check,
 } from 'lucide-react';
 
 interface WordLibraryProps {
   words: Word[];
   onAddWord: (word: Word) => void;
+  onImportWords?: (words: Word[]) => void;
   onUpdateWord?: (word: Word) => void;
   onDeleteWord?: (wordId: string) => void;
   onToggleWeak: (wordId: string) => void;
@@ -32,6 +44,7 @@ interface WordLibraryProps {
 export const WordLibrary: React.FC<WordLibraryProps> = ({
   words,
   onAddWord,
+  onImportWords,
   onUpdateWord,
   onDeleteWord,
   onToggleWeak,
@@ -158,6 +171,90 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
     }
   };
 
+  // Export Modal State
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportScope, setExportScope] = useState<'custom' | 'filtered' | 'all'>('custom');
+  const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'txt'>('csv');
+
+  // Import Modal State
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importCategory, setImportCategory] = useState<WordCategory>('custom');
+  const [parsedImportWords, setParsedImportWords] = useState<Word[]>([]);
+  const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
+
+  // Handle Export Download
+  const handleExecuteExport = () => {
+    let targetWords = words;
+    if (exportScope === 'custom') {
+      targetWords = words.filter(w => w.category === 'custom');
+    } else if (exportScope === 'filtered') {
+      targetWords = filteredWords;
+    }
+
+    if (targetWords.length === 0) {
+      alert('所選範圍目前沒有單字可供匯出！');
+      return;
+    }
+
+    const timestamp = new Date().toISOString().slice(0, 10);
+    if (exportFormat === 'csv') {
+      const csv = exportWordsToCSV(targetWords);
+      downloadFile(csv, `wordpet_words_${exportScope}_${timestamp}.csv`, 'text/csv;charset=utf-8;');
+    } else if (exportFormat === 'json') {
+      const json = exportWordsToJSON(targetWords);
+      downloadFile(json, `wordpet_words_${exportScope}_${timestamp}.json`, 'application/json');
+    } else {
+      const txt = exportWordsToTXT(targetWords);
+      downloadFile(txt, `wordpet_words_${exportScope}_${timestamp}.txt`, 'text/plain;charset=utf-8;');
+    }
+
+    setShowExportModal(false);
+  };
+
+  // Handle file upload import
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        setImportText(content);
+        const parsed = parseImportedContent(content, importCategory);
+        setParsedImportWords(parsed);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Handle text paste input change
+  const handleTextChange = (text: string) => {
+    setImportText(text);
+    const parsed = parseImportedContent(text, importCategory);
+    setParsedImportWords(parsed);
+  };
+
+  const handleCategoryChangeForImport = (cat: WordCategory) => {
+    setImportCategory(cat);
+    if (importText.trim()) {
+      const parsed = parseImportedContent(importText, cat);
+      setParsedImportWords(parsed);
+    }
+  };
+
+  const handleConfirmImport = () => {
+    if (parsedImportWords.length === 0) return;
+    onImportWords?.(parsedImportWords);
+    const count = parsedImportWords.length;
+    setShowImportModal(false);
+    setImportText('');
+    setParsedImportWords([]);
+    setImportSuccessMsg(`🎉 成功匯入 ${count} 個單字至「${categoryLabels[importCategory] || '自訂單字庫'}」！`);
+    setTimeout(() => setImportSuccessMsg(null), 5000);
+  };
+
   const now = new Date().getTime();
 
   // Filter words
@@ -278,11 +375,31 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {/* Export Words Button */}
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+            title="匯出單字本（支援 CSV / JSON / TXT 試算表格式）"
+          >
+            <Download className="h-3.5 w-3.5 text-sky-400" />
+            匯出
+          </button>
+
+          {/* Import Words Button */}
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+            title="匯入單字本（支援上傳檔案或批量貼上）"
+          >
+            <Upload className="h-3.5 w-3.5 text-emerald-400" />
+            匯入
+          </button>
+
           {filteredWords.length > 0 && (
             <button
               onClick={() => onStartSpecificQuiz(filteredWords)}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/40 border border-indigo-500/40 px-3.5 py-2 text-xs font-bold text-indigo-200 transition-colors"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/40 border border-indigo-500/40 px-3.5 py-2 text-xs font-bold text-indigo-200 transition-colors cursor-pointer"
             >
               <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
               測驗此清單 ({filteredWords.length})
@@ -294,13 +411,29 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
               setIsManualPos(false);
               setShowAddModal(true);
             }}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-bold text-white transition-colors shadow-lg shadow-indigo-600/30 cursor-pointer"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3.5 py-2 text-xs font-bold text-white transition-colors shadow-lg shadow-indigo-600/30 cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             新增自訂單字
           </button>
         </div>
       </div>
+
+      {/* Import Success Toast Banner */}
+      {importSuccessMsg && (
+        <div className="rounded-2xl bg-emerald-950/70 border border-emerald-500/40 p-3.5 text-xs text-emerald-300 flex items-center justify-between shadow-lg animate-in fade-in duration-200">
+          <div className="flex items-center gap-2 font-bold">
+            <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+            <span>{importSuccessMsg}</span>
+          </div>
+          <button
+            onClick={() => setImportSuccessMsg(null)}
+            className="text-slate-400 hover:text-white p-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="space-y-3 rounded-2xl bg-slate-900/80 p-4 border border-slate-800">
@@ -910,6 +1043,305 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* EXPORT WORDS MODAL */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 p-5 sm:p-6 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+              <h3 className="text-lg font-bold font-fun text-white flex items-center gap-2">
+                <Download className="h-5 w-5 text-sky-400" />
+                匯出單字本
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowExportModal(false)}
+                className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">
+                  1. 選擇匯出單字範圍：
+                </label>
+                <div className="grid grid-cols-1 gap-2">
+                  <label
+                    onClick={() => setExportScope('custom')}
+                    className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                      exportScope === 'custom'
+                        ? 'bg-sky-500/10 border-sky-500/50 text-white'
+                        : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">⭐️</span>
+                      <div>
+                        <div className="font-bold">僅自訂單字本</div>
+                        <div className="text-[10px] text-slate-400">只匯出自己建立的學習單字</div>
+                      </div>
+                    </div>
+                    <span className="font-mono text-sky-400 font-bold">
+                      {words.filter(w => w.category === 'custom').length} 字
+                    </span>
+                  </label>
+
+                  <label
+                    onClick={() => setExportScope('filtered')}
+                    className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                      exportScope === 'filtered'
+                        ? 'bg-sky-500/10 border-sky-500/50 text-white'
+                        : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">📋</span>
+                      <div>
+                        <div className="font-bold">目前清單篩選結果</div>
+                        <div className="text-[10px] text-slate-400">根據目前分類或搜尋關鍵字所得</div>
+                      </div>
+                    </div>
+                    <span className="font-mono text-sky-400 font-bold">
+                      {filteredWords.length} 字
+                    </span>
+                  </label>
+
+                  <label
+                    onClick={() => setExportScope('all')}
+                    className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                      exportScope === 'all'
+                        ? 'bg-sky-500/10 border-sky-500/50 text-white'
+                        : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">📚</span>
+                      <div>
+                        <div className="font-bold">全庫所有單字</div>
+                        <div className="text-[10px] text-slate-400">包含系統預設分類與所有自訂單字</div>
+                      </div>
+                    </div>
+                    <span className="font-mono text-sky-400 font-bold">
+                      {words.length} 字
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">
+                  2. 選擇匯出格式：
+                </label>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setExportFormat('csv')}
+                    className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                      exportFormat === 'csv'
+                        ? 'bg-emerald-500/20 border-emerald-500 text-white font-bold'
+                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
+                    }`}
+                  >
+                    <FileText className="h-5 w-5 text-emerald-400" />
+                    <span>CSV 試算表</span>
+                    <span className="text-[9px] text-slate-400">Excel / Sheets</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setExportFormat('json')}
+                    className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                      exportFormat === 'json'
+                        ? 'bg-amber-500/20 border-amber-500 text-white font-bold'
+                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
+                    }`}
+                  >
+                    <Download className="h-5 w-5 text-amber-400" />
+                    <span>JSON 備份檔</span>
+                    <span className="text-[9px] text-slate-400">完整進度複習備份</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setExportFormat('txt')}
+                    className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                      exportFormat === 'txt'
+                        ? 'bg-indigo-500/20 border-indigo-500 text-white font-bold'
+                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
+                    }`}
+                  >
+                    <BookOpen className="h-5 w-5 text-indigo-400" />
+                    <span>純文字 TXT</span>
+                    <span className="text-[9px] text-slate-400">單字清單列印</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteExport}
+                  className="rounded-xl bg-sky-600 hover:bg-sky-500 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-sky-600/30 transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  下載匯出檔案
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* IMPORT WORDS MODAL */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 p-5 sm:p-6 shadow-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4 shrink-0">
+              <h3 className="text-lg font-bold font-fun text-white flex items-center gap-2">
+                <Upload className="h-5 w-5 text-emerald-400" />
+                批量匯入單字
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowImportModal(false)}
+                className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3.5 overflow-y-auto pr-1">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  1. 選擇匯入時所屬詞庫分類：
+                </label>
+                <select
+                  value={importCategory}
+                  onChange={e => handleCategoryChangeForImport(e.target.value as WordCategory)}
+                  className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="custom">⭐️ 自訂單字本 (預設)</option>
+                  <option value="junior">🎒 國中必背單字</option>
+                  <option value="highschool">🏫 高中 7000 單</option>
+                  <option value="toeic">💼 多益 TOEIC</option>
+                  <option value="toefl">🎓 托福 TOEFL</option>
+                  <option value="business">🏢 商務職場</option>
+                  <option value="daily">☕ 常用生活</option>
+                </select>
+              </div>
+
+              {/* Upload file button */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  2. 方式一：上傳檔案 (.csv / .json / .txt)
+                </label>
+                <label className="flex items-center justify-center gap-2 w-full p-3 rounded-xl border border-dashed border-slate-700 bg-slate-800/40 hover:bg-slate-800 hover:border-slate-600 cursor-pointer transition-colors text-xs text-slate-300">
+                  <Upload className="h-4 w-4 text-indigo-400" />
+                  <span>點擊選擇檔案上傳</span>
+                  <input
+                    type="file"
+                    accept=".csv,.json,.txt"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {/* Paste Text Area */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-300">
+                    3. 方式二：直接貼上單字文字清單
+                  </label>
+                  <span className="text-[10px] text-slate-400">
+                    一行一單字，系統自動辨識詞性與三態！
+                  </span>
+                </div>
+                <textarea
+                  rows={4}
+                  value={importText}
+                  onChange={e => handleTextChange(e.target.value)}
+                  placeholder={`每行一個單字，支援格式：\napple, n., 蘋果\nstudy, 學習\ntake - 拿取\nbeautiful, 美麗的`}
+                  className="w-full rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
+                />
+              </div>
+
+              {/* Parsed Preview */}
+              {parsedImportWords.length > 0 && (
+                <div className="rounded-2xl bg-indigo-950/40 border border-indigo-500/30 p-3 space-y-2 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-indigo-300 flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                      已成功解析 {parsedImportWords.length} 個單字：
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      （自動分析詞性、動詞三態及名詞複數）
+                    </span>
+                  </div>
+                  <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+                    {parsedImportWords.map((w, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-xs font-mono"
+                      >
+                        <div className="flex items-center gap-1.5 truncate">
+                          <b className="text-white">{w.word}</b>
+                          <span className="text-[10px] px-1 rounded bg-slate-800 text-indigo-300">
+                            {w.partOfSpeech}
+                          </span>
+                          <span className="text-slate-300 truncate">{w.meaning}</span>
+                        </div>
+                        {w.partOfSpeech.startsWith('v') && (
+                          <span className="text-[9px] text-amber-400/90 font-sans shrink-0 hidden sm:inline">
+                            三態已生成
+                          </span>
+                        )}
+                        {w.partOfSpeech.startsWith('n') && (
+                          <span className="text-[9px] text-emerald-400/90 font-sans shrink-0 hidden sm:inline">
+                            複數已生成
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800 mt-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowImportModal(false)}
+                className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                disabled={parsedImportWords.length === 0}
+                onClick={handleConfirmImport}
+                className={`rounded-xl px-5 py-2 text-xs font-bold text-white transition-all shadow-lg active:scale-95 cursor-pointer flex items-center gap-1.5 ${
+                  parsedImportWords.length === 0
+                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                    : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/30'
+                }`}
+              >
+                <Check className="h-3.5 w-3.5" />
+                確認匯入 ({parsedImportWords.length} 個單字)
+              </button>
+            </div>
           </div>
         </div>
       )}

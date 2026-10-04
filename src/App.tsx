@@ -402,6 +402,24 @@ export default function App() {
     }));
   };
 
+  // Batch Import Words (批量匯入單字)
+  const handleImportWords = (importedWords: Word[]) => {
+    setAppState(prev => {
+      const existingMap = new Map(prev.words.map(w => [w.word.toLowerCase(), w]));
+      const newItems: Word[] = [];
+      importedWords.forEach(w => {
+        if (!existingMap.has(w.word.toLowerCase())) {
+          existingMap.set(w.word.toLowerCase(), w);
+          newItems.push(w);
+        }
+      });
+      return {
+        ...prev,
+        words: [...newItems, ...prev.words],
+      };
+    });
+  };
+
   // Update Existing Word (修改單字內容)
   const handleUpdateWord = (updatedWord: Word) => {
     setAppState(prev => ({
@@ -742,6 +760,7 @@ export default function App() {
           <WordLibrary
             words={words}
             onAddWord={handleAddWord}
+            onImportWords={handleImportWords}
             onUpdateWord={handleUpdateWord}
             onDeleteWord={handleDeleteWord}
             onToggleWeak={handleToggleWeak}
