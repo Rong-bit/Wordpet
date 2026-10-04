@@ -158,4 +158,5 @@ export interface UserProfile {
   voiceSpeed: number;
   isOfflineMode: boolean;
   lastCloudSync: string | null;
+  quizBatchSize?: number; // 每次測驗建議題數 (例如 20~30 題，預設 20 題)
 }

@@ -81,9 +81,55 @@ export default function App() {
     w => new Date(w.nextReviewAt).getTime() <= now
   );
 
-  const currentQuizList = homeQuizCategory === 'all'
-    ? (dueWords.length > 0 ? dueWords : words.slice(0, 10))
-    : (homeCategoryDueWords.length > 0 ? homeCategoryDueWords : homeCategoryWords);
+  // User selected batch size: 10, 20, 25, 30, or 0 (all), defaults to 20
+  const currentBatchSize = profile.quizBatchSize ?? 20;
+
+  // Build a smart, focused session list capped at the requested batch size (20~30 questions)
+  const buildSmartQuizBatch = (
+    pool: Word[],
+    duePool: Word[],
+    limit: number
+  ): Word[] => {
+    if (limit <= 0) {
+      return duePool.length > 0 ? duePool : pool;
+    }
+
+    // 1. Sort due words by most overdue first
+    const sortedDue = [...duePool].sort(
+      (a, b) => new Date(a.nextReviewAt).getTime() - new Date(b.nextReviewAt).getTime()
+    );
+
+    if (sortedDue.length >= limit) {
+      return sortedDue.slice(0, limit);
+    }
+
+    // 2. If due words are fewer than the batch size (e.g. 5 due words, limit 20),
+    // fill the remaining slots with non-due words from this category (prioritize weak or least reviewed)
+    const dueIds = new Set(sortedDue.map(w => w.id));
+    const extraCandidates = pool
+      .filter(w => !dueIds.has(w.id))
+      .sort((a, b) => {
+        if (a.isWeak !== b.isWeak) return a.isWeak ? -1 : 1;
+        return a.repetition - b.repetition;
+      });
+
+    const needed = limit - sortedDue.length;
+    return [...sortedDue, ...extraCandidates.slice(0, needed)];
+  };
+
+  const currentQuizList = buildSmartQuizBatch(
+    homeCategoryWords,
+    homeCategoryDueWords,
+    currentBatchSize
+  );
+
+  const BATCH_SIZE_OPTIONS = [
+    { value: 10, label: '10 題 (極速)' },
+    { value: 20, label: '⚡ 20 題 (推薦)' },
+    { value: 25, label: '25 題' },
+    { value: 30, label: '30 題 (衝刺)' },
+    { value: 0, label: '全部單字' },
+  ];
 
   const HOME_QUIZ_CATEGORIES = [
     { id: 'all', label: '全部單字 (SRS)', shortLabel: '全部單字' },
@@ -532,16 +578,52 @@ export default function App() {
                         </div>
                       </div>
 
+                      {/* Batch Size Selector (20~30 題自選) */}
+                      <div className="mt-3 pt-3 border-t border-slate-800/80">
+                        <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                          <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                            <Zap className="h-3.5 w-3.5 text-amber-400" />
+                            ⚡ 每次測驗題量：
+                          </span>
+                          <span className="text-[11px] text-amber-300 font-medium">
+                            {currentBatchSize === 0
+                              ? '全量測驗'
+                              : `每次精選 ${currentQuizList.length} 題・短時高專注`}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                          {BATCH_SIZE_OPTIONS.map(opt => {
+                            const isSelected = (profile.quizBatchSize ?? 20) === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => {
+                                  soundFx.playTap();
+                                  setAppState(prev => ({
+                                    ...prev,
+                                    profile: { ...prev.profile, quizBatchSize: opt.value }
+                                  }));
+                                }}
+                                className={`shrink-0 px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-sm'
+                                    : 'bg-slate-950/70 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       {/* Main Action Buttons */}
                       <div className="mt-5 flex flex-wrap items-center gap-3">
                         <button
                           disabled={currentQuizList.length === 0}
                           onClick={() => {
-                            if (homeQuizCategory === 'all') {
-                              setCustomQuizList(null);
-                            } else {
-                              setCustomQuizList(currentQuizList);
-                            }
+                            setCustomQuizList(currentQuizList);
                             setIsQuizActive(true);
                           }}
                           className={`flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold text-white transition-all shadow-lg active:scale-95 cursor-pointer ${

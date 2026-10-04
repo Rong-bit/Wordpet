@@ -37,6 +37,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   voiceSpeed: 0.95,
   isOfflineMode: false,
   lastCloudSync: null,
+  quizBatchSize: 20,
 };
 
 export function loadAppState(): AppState {
