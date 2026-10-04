@@ -84,6 +84,27 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
   const liveVerbForms = isVerb && newWord.word.trim() ? getVerbForms(newWord.word) : null;
   const liveNounForms = isNoun && newWord.word.trim() ? getNounForms(newWord.word) : null;
 
+  // Real-time Duplicate Detection for Add Word
+  const cleanInputWord = newWord.word.trim().toLowerCase();
+  const cleanInputMeaning = newWord.meaning.trim();
+
+  const existingWordMatches = cleanInputWord
+    ? words.filter(w => w.word.toLowerCase() === cleanInputWord)
+    : [];
+
+  const exactMeaningMatch = existingWordMatches.find(w => {
+    if (!cleanInputMeaning) return false;
+    const existingM = w.meaning.trim();
+    if (existingM === cleanInputMeaning) return true;
+    const cleanTokens = cleanInputMeaning.split(/[,、，；;\s]+/).filter(Boolean);
+    const existingTokens = existingM.split(/[,、，；;\s]+/).filter(Boolean);
+    return (
+      cleanTokens.some(t => existingTokens.includes(t)) ||
+      existingM.includes(cleanInputMeaning) ||
+      cleanInputMeaning.includes(existingM)
+    );
+  });
+
   // Editing Word State
   const [editingWord, setEditingWord] = useState<Word | null>(null);
   const [editForm, setEditForm] = useState({
@@ -93,6 +114,20 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
     category: 'custom' as WordCategory,
   });
   const [isEditManualPos, setIsEditManualPos] = useState(true);
+
+  // Duplicate Detection for Edit Word
+  const cleanEditWord = editForm.word.trim().toLowerCase();
+  const cleanEditMeaning = editForm.meaning.trim();
+  const duplicateEditMatch = editingWord && cleanEditWord
+    ? words.find(
+        w =>
+          w.id !== editingWord.id &&
+          w.word.toLowerCase() === cleanEditWord &&
+          (w.meaning.trim() === cleanEditMeaning ||
+            w.meaning.includes(cleanEditMeaning) ||
+            cleanEditMeaning.includes(w.meaning))
+      )
+    : null;
 
   const startEditingWord = (w: Word) => {
     setEditingWord(w);
@@ -246,12 +281,18 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
 
   const handleConfirmImport = () => {
     if (parsedImportWords.length === 0) return;
+    const existingMap = new Map(words.map(w => [w.word.toLowerCase(), w]));
+    const duplicates = parsedImportWords.filter(w => existingMap.has(w.word.toLowerCase()));
     onImportWords?.(parsedImportWords);
-    const count = parsedImportWords.length;
+    const addedCount = parsedImportWords.length - duplicates.length;
     setShowImportModal(false);
     setImportText('');
     setParsedImportWords([]);
-    setImportSuccessMsg(`🎉 成功匯入 ${count} 個單字至「${categoryLabels[importCategory] || '自訂單字庫'}」！`);
+    if (duplicates.length > 0) {
+      setImportSuccessMsg(`🎉 成功匯入 ${addedCount} 個新單字！（已自動略過 ${duplicates.length} 個在庫重複單字）`);
+    } else {
+      setImportSuccessMsg(`🎉 成功匯入 ${addedCount} 個單字至「${categoryLabels[importCategory] || '自訂單字庫'}」！`);
+    }
     setTimeout(() => setImportSuccessMsg(null), 5000);
   };
 
@@ -286,6 +327,18 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
     const trimmedWord = newWord.word.trim();
     const trimmedMeaning = newWord.meaning.trim();
     if (!trimmedWord || !trimmedMeaning) return;
+
+    // Duplicate Check Warning Confirmation
+    if (exactMeaningMatch) {
+      const confirmAdd = window.confirm(
+        `【重複單字提醒】\n\n單字庫中已收錄「${exactMeaningMatch.word} (${exactMeaningMatch.meaning})」[分類：${categoryLabels[exactMeaningMatch.category] || exactMeaningMatch.category}]，中文釋義相同！\n\n您確定仍要重複建立一筆新單字嗎？\n（點擊「取消」將帶您前往查看現有單字，避免重複學習與分散複習次數）`
+      );
+      if (!confirmAdd) {
+        setShowAddModal(false);
+        setSearchTerm(exactMeaningMatch.word);
+        return;
+      }
+    }
 
     let confusionNotes = '';
     let exampleEn = '';
@@ -724,6 +777,78 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                 />
               </div>
 
+              {/* Exact Duplicate Warning Banner */}
+              {exactMeaningMatch && (
+                <div className="rounded-2xl bg-amber-500/15 border border-amber-500/40 p-3.5 space-y-2 animate-in fade-in duration-200">
+                  <div className="flex items-start gap-2.5 text-xs">
+                    <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-bold text-amber-200">
+                        ⚠️ 單字庫中已收錄相同單字與中文釋義！
+                      </div>
+                      <div className="text-slate-300 mt-1 text-[11px] leading-relaxed">
+                        已存在單字：<b className="text-white font-mono">{exactMeaningMatch.word}</b>
+                        <span className="mx-1 px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 text-[10px] font-semibold">
+                          {exactMeaningMatch.partOfSpeech}
+                        </span>
+                        「<b className="text-amber-300">{exactMeaningMatch.meaning}</b>」
+                        <span className="text-slate-400 ml-1">
+                          （收錄於：{categoryLabels[exactMeaningMatch.category] || exactMeaningMatch.category}）
+                        </span>
+                      </div>
+                      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAddModal(false);
+                            startEditingWord(exactMeaningMatch);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-amber-500/30 hover:bg-amber-500/40 border border-amber-500/50 text-[11px] font-bold text-amber-200 cursor-pointer flex items-center gap-1 transition-colors"
+                        >
+                          <Pencil className="h-3 w-3" />
+                          直接修改已收錄的單字
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchTerm(exactMeaningMatch.word);
+                            setShowAddModal(false);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 cursor-pointer transition-colors"
+                        >
+                          前往查看該單字
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Polysemy / Different Meaning Notice */}
+              {!exactMeaningMatch && existingWordMatches.length > 0 && (
+                <div className="rounded-2xl bg-indigo-500/10 border border-indigo-500/30 p-3 space-y-1 text-xs animate-in fade-in duration-150">
+                  <div className="flex items-start gap-2">
+                    <Sparkles className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="text-indigo-200 font-semibold">
+                        ℹ️ 單字庫已收錄此英文單字（不同中文釋義）：
+                      </div>
+                      <div className="text-[11px] text-slate-300 mt-0.5">
+                        現有單字：
+                        {existingWordMatches.map((m, idx) => (
+                          <span key={idx} className="mr-2">
+                            <b className="text-white font-mono">{m.word}</b> [{m.partOfSpeech}]「{m.meaning}」
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        若您要建立多重詞性或延伸釋義，可繼續建立新單字！
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
                   詞庫分類
@@ -927,6 +1052,24 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                   className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-bold text-amber-300"
                 />
               </div>
+
+              {/* Duplicate Detection Alert in Edit Modal */}
+              {duplicateEditMatch && (
+                <div className="rounded-2xl bg-amber-500/15 border border-amber-500/40 p-3 space-y-1 text-xs animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>⚠️ 修改後的單字與另一筆現有單字重複：</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 pl-6">
+                    已存在單字：<b className="text-white font-mono">{duplicateEditMatch.word}</b>
+                    <span className="mx-1 px-1 rounded bg-slate-800 text-indigo-300 text-[10px]">{duplicateEditMatch.partOfSpeech}</span>
+                    「<b className="text-amber-300">{duplicateEditMatch.meaning}</b>」
+                    <span className="text-slate-400 ml-1">
+                      （收錄於：{categoryLabels[duplicateEditMatch.category] || duplicateEditMatch.category}）
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
@@ -1291,30 +1434,44 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                     </span>
                   </div>
                   <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
-                    {parsedImportWords.map((w, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-xs font-mono"
-                      >
-                        <div className="flex items-center gap-1.5 truncate">
-                          <b className="text-white">{w.word}</b>
-                          <span className="text-[10px] px-1 rounded bg-slate-800 text-indigo-300">
-                            {w.partOfSpeech}
-                          </span>
-                          <span className="text-slate-300 truncate">{w.meaning}</span>
+                    {parsedImportWords.map((w, idx) => {
+                      const isDup = words.some(ew => ew.word.toLowerCase() === w.word.toLowerCase());
+                      return (
+                        <div
+                          key={idx}
+                          className={`flex items-center justify-between p-1.5 rounded-lg border text-xs font-mono transition-colors ${
+                            isDup
+                              ? 'bg-amber-950/30 border-amber-500/30'
+                              : 'bg-slate-900/80 border-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 truncate">
+                            <b className="text-white">{w.word}</b>
+                            <span className="text-[10px] px-1 rounded bg-slate-800 text-indigo-300">
+                              {w.partOfSpeech}
+                            </span>
+                            <span className="text-slate-300 truncate">{w.meaning}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isDup && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-sans font-bold">
+                                ⚠️ 已在字庫
+                              </span>
+                            )}
+                            {w.partOfSpeech.startsWith('v') && (
+                              <span className="text-[9px] text-amber-400/90 font-sans hidden sm:inline">
+                                三態已生成
+                              </span>
+                            )}
+                            {w.partOfSpeech.startsWith('n') && (
+                              <span className="text-[9px] text-emerald-400/90 font-sans hidden sm:inline">
+                                複數已生成
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        {w.partOfSpeech.startsWith('v') && (
-                          <span className="text-[9px] text-amber-400/90 font-sans shrink-0 hidden sm:inline">
-                            三態已生成
-                          </span>
-                        )}
-                        {w.partOfSpeech.startsWith('n') && (
-                          <span className="text-[9px] text-emerald-400/90 font-sans shrink-0 hidden sm:inline">
-                            複數已生成
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
