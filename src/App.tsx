@@ -402,6 +402,22 @@ export default function App() {
     }));
   };
 
+  // Update Existing Word (修改單字內容)
+  const handleUpdateWord = (updatedWord: Word) => {
+    setAppState(prev => ({
+      ...prev,
+      words: prev.words.map(w => (w.id === updatedWord.id ? updatedWord : w)),
+    }));
+  };
+
+  // Delete Word (刪除單字)
+  const handleDeleteWord = (wordId: string) => {
+    setAppState(prev => ({
+      ...prev,
+      words: prev.words.filter(w => w.id !== wordId),
+    }));
+  };
+
   // Toggle Weak status for word
   const handleToggleWeak = (wordId: string) => {
     setAppState(prev => ({
@@ -726,6 +742,8 @@ export default function App() {
           <WordLibrary
             words={words}
             onAddWord={handleAddWord}
+            onUpdateWord={handleUpdateWord}
+            onDeleteWord={handleDeleteWord}
             onToggleWeak={handleToggleWeak}
             onStartSpecificQuiz={handleStartSpecificQuiz}
             voiceGender={profile.voiceGender}
