@@ -430,6 +430,7 @@ export default function App() {
                     onOpenShare={() => setShowShare(true)}
                     onOpenCustomizer={() => setShowCustomizer(true)}
                     onStartReview={() => setIsQuizActive(true)}
+                    onOpenBestiary={() => setShowBestiary(true)}
                   />
                 </div>
 

@@ -14,6 +14,7 @@ interface PetCardProps {
   onOpenShare: () => void;
   onOpenCustomizer: () => void;
   onStartReview: () => void;
+  onOpenBestiary?: () => void;
 }
 
 export const PetCard: React.FC<PetCardProps> = ({
@@ -25,6 +26,7 @@ export const PetCard: React.FC<PetCardProps> = ({
   onOpenShare,
   onOpenCustomizer,
   onStartReview,
+  onOpenBestiary,
 }) => {
   const [showFeedMenu, setShowFeedMenu] = useState(false);
   const [touchHearts, setTouchHearts] = useState<number[]>([]);
@@ -292,6 +294,25 @@ export const PetCard: React.FC<PetCardProps> = ({
         <span className="font-bold text-amber-400">✨ 專屬特質：</span>
         {pet.specialTrait}
       </div>
+
+      {/* View Ultimate Forms Showcase Button */}
+      {onOpenBestiary && (
+        <button
+          onClick={onOpenBestiary}
+          className="mt-3 w-full flex items-center justify-between rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-orange-500/10 border border-amber-500/30 p-2.5 text-xs text-amber-300 hover:border-amber-400/60 transition-all group"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-base">👑</span>
+            <span className="font-bold">神獸終極形態全覽</span>
+            <span className="text-[10px] text-amber-400/80 bg-amber-500/20 px-1.5 py-0.5 rounded-full">
+              點擊預覽
+            </span>
+          </div>
+          <span className="text-[11px] text-amber-400 group-hover:translate-x-1 transition-transform">
+            日珥神龍 / 極光九尾 / 聖翼獨角獸 →
+          </span>
+        </button>
+      )}
     </div>
   );
 };
