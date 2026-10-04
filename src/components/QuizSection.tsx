@@ -390,32 +390,32 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
           </div>
         ) : direction === 'en_to_zh' ? (
           <div>
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <span className="text-xs px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-xs sm:text-sm px-2.5 py-1 rounded-md bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/30">
                 {currentWord.partOfSpeech}
               </span>
-              <span className="text-xs text-slate-400 font-mono">
+              <span className="text-sm sm:text-base text-slate-400 font-mono">
                 {currentWord.phonetic}
               </span>
               <button
                 onClick={() => speakEnglish(currentWord.word, voiceGender, voiceSpeed)}
-                className="text-slate-400 hover:text-indigo-400 p-1 transition-colors"
+                className="text-slate-400 hover:text-indigo-400 p-1.5 transition-colors cursor-pointer"
                 title="語音朗讀"
               >
-                <Volume2 className="h-4 w-4" />
+                <Volume2 className="h-5 w-5" />
               </button>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold font-fun text-white tracking-wide">
+            <h2 className="text-4xl sm:text-5xl font-black font-fun text-white tracking-wide">
               {currentWord.word}
             </h2>
           </div>
         ) : (
           /* zh_to_en: Chinese Prompt */
           <div>
-            <div className="text-xs px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-semibold inline-block mb-2 border border-purple-500/30">
+            <div className="text-xs sm:text-sm px-2.5 py-1 rounded-md bg-purple-500/20 text-purple-300 font-bold inline-block mb-2 border border-purple-500/30">
               {currentWord.partOfSpeech} 請選出正確英文單字
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-wide">
+            <h2 className="text-3xl sm:text-4xl font-black text-amber-300 tracking-wide">
               {currentWord.meaning}
             </h2>
           </div>
@@ -424,7 +424,7 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
 
       {/* Answer Options or Spelling Form */}
       {!isSpellingMode ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {options.map((option, idx) => {
             const targetAnswer =
               direction === 'zh_to_en' ? currentWord.word : currentWord.meaning;
@@ -435,7 +435,7 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
               'border-slate-800 bg-slate-800/40 text-slate-200 hover:border-slate-700 hover:bg-slate-800/80';
             if (isAnswered) {
               if (isThisCorrect) {
-                btnStyle = 'border-emerald-500 bg-emerald-500/20 text-emerald-200 font-bold';
+                btnStyle = 'border-emerald-500 bg-emerald-500/20 text-emerald-200 font-black shadow-lg shadow-emerald-500/20';
               } else if (isThisSelected) {
                 btnStyle = 'border-rose-500 bg-rose-500/20 text-rose-200 font-bold';
               } else {
@@ -448,17 +448,17 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
                 key={idx}
                 disabled={isAnswered}
                 onClick={() => handleSelectOption(option)}
-                className={`flex items-center gap-3 rounded-2xl border p-4 text-left text-sm transition-all duration-200 ${btnStyle}`}
+                className={`flex items-center gap-3.5 rounded-2xl border p-4 sm:p-5 text-left text-base sm:text-lg transition-all duration-200 min-h-[64px] cursor-pointer ${btnStyle}`}
               >
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-xs font-bold text-slate-400">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-xs sm:text-sm font-bold text-slate-400">
                   {String.fromCharCode(65 + idx)}
                 </span>
-                <span className="flex-1 font-medium">{option}</span>
+                <span className="flex-1 font-bold leading-snug">{option}</span>
                 {isAnswered && isThisCorrect && (
-                  <CheckCircle className="h-5 w-5 text-emerald-400 shrink-0" />
+                  <CheckCircle className="h-6 w-6 text-emerald-400 shrink-0" />
                 )}
                 {isAnswered && isThisSelected && !isThisCorrect && (
-                  <XCircle className="h-5 w-5 text-rose-400 shrink-0" />
+                  <XCircle className="h-6 w-6 text-rose-400 shrink-0" />
                 )}
               </button>
             );
@@ -498,32 +498,32 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
                 : 'border-rose-500/30 bg-rose-950/30 text-rose-200'
             }`}
           >
-            <div className="flex items-center gap-2 font-bold text-sm mb-1.5">
+            <div className="flex items-center gap-2 font-black text-base sm:text-lg mb-2">
               {isCorrect ? (
                 <>
-                  <CheckCircle className="h-4 w-4 text-emerald-400" />
+                  <CheckCircle className="h-5 w-5 text-emerald-400" />
                   答對了！精準命中！
                 </>
               ) : (
                 <>
-                  <XCircle className="h-4 w-4 text-rose-400" />
+                  <XCircle className="h-5 w-5 text-rose-400" />
                   答錯了，請仔細查看觀念解析！
                 </>
               )}
             </div>
 
             {/* In-depth error clarification */}
-            <div className="space-y-1.5 text-slate-300">
+            <div className="space-y-2 text-slate-300 text-sm sm:text-base">
               <p>
-                <span className="font-semibold text-white">{currentWord.word}</span>{' '}
-                <span className="text-slate-400">{currentWord.phonetic}</span> :{' '}
+                <span className="font-extrabold text-white text-base sm:text-lg">{currentWord.word}</span>{' '}
+                <span className="text-slate-400 font-mono">{currentWord.phonetic}</span> :{' '}
                 <span className="font-bold text-amber-300">{currentWord.meaning}</span>
               </p>
-              <div className="rounded-xl bg-slate-900/80 p-2.5 border border-slate-800">
+              <div className="rounded-xl bg-slate-900/80 p-3 border border-slate-800 text-sm sm:text-base">
                 <p className="text-slate-200 italic">"{currentWord.exampleEn}"</p>
-                <p className="text-slate-400 text-[11px] mt-0.5">{currentWord.exampleZh}</p>
+                <p className="text-slate-400 text-xs sm:text-sm mt-1">{currentWord.exampleZh}</p>
               </div>
-              <p className="text-[11px] text-indigo-300 bg-indigo-950/40 p-2 rounded-lg border border-indigo-900/60">
+              <p className="text-xs sm:text-sm text-indigo-300 bg-indigo-950/40 p-2.5 rounded-xl border border-indigo-900/60 leading-relaxed">
                 💡 <span className="font-bold">易混淆辨析 / 記憶技巧：</span> {currentWord.confusionNotes}
               </p>
             </div>
@@ -532,10 +532,10 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
           {/* Continue button */}
           <button
             onClick={handleNextWord}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 py-3.5 text-xs font-bold text-white transition-all shadow-lg shadow-indigo-600/30 active:scale-98"
+            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 py-4 text-sm sm:text-base font-bold text-white transition-all shadow-lg shadow-indigo-600/30 active:scale-98 cursor-pointer"
           >
             {currentIndex + 1 < testWords.length ? '下一題複習' : '查看本次複習總結'}
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-5 w-5" />
           </button>
         </div>
       )}

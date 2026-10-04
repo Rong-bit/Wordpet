@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   Sparkles,
+  Type,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -56,6 +57,20 @@ export const Navbar: React.FC<NavbarProps> = ({
     onUpdateProfile({
       ...profile,
       voiceGender: profile.voiceGender === 'en-US' ? 'en-GB' : 'en-US',
+    });
+  };
+
+  const currentFontSize = profile.fontSizeMode || 'large';
+  const cycleFontSize = () => {
+    const nextMode =
+      currentFontSize === 'normal'
+        ? 'large'
+        : currentFontSize === 'large'
+        ? 'huge'
+        : 'normal';
+    onUpdateProfile({
+      ...profile,
+      fontSizeMode: nextMode,
     });
   };
 
@@ -207,15 +222,39 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Accent toggle button */}
             <button
               onClick={toggleAccent}
-              className="rounded-xl bg-slate-900 border border-slate-800 px-2 py-1 text-[11px] font-bold text-slate-300 hover:text-white transition-colors"
+              className="rounded-xl bg-slate-900 border border-slate-800 px-2 py-1 text-[11px] font-bold text-slate-300 hover:text-white transition-colors cursor-pointer"
               title="切換美式/英式發音"
             >
               {profile.voiceGender === 'en-US' ? '美音 🇺🇸' : '英音 🇬🇧'}
+            </button>
+
+            {/* Font size toggle button (Desktop) */}
+            <button
+              onClick={cycleFontSize}
+              className="flex items-center gap-1 rounded-xl bg-slate-900 border border-slate-800 px-2.5 py-1 text-xs font-bold text-slate-300 hover:text-white hover:border-slate-700 transition-colors cursor-pointer"
+              title="切換字體大小 (標準 / 大 / 特大)"
+            >
+              <Type className="h-3.5 w-3.5 text-indigo-400" />
+              <span>
+                {currentFontSize === 'huge' ? '特大字體' : currentFontSize === 'large' ? '大字體' : '標準字體'}
+              </span>
             </button>
           </div>
 
           {/* Mobile Quick Action Buttons (Single line, strictly no wrap) */}
           <div className="flex md:hidden items-center gap-1.5">
+            {/* Mobile Font Size Toggle */}
+            <button
+              onClick={cycleFontSize}
+              className="px-2 py-1 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-slate-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+              title="切換字體大小 (標準/大/特大)"
+            >
+              <Type className="h-3.5 w-3.5 text-indigo-400" />
+              <span className="text-[11px]">
+                {currentFontSize === 'huge' ? '特大' : currentFontSize === 'large' ? '大' : '標準'}
+              </span>
+            </button>
+
             <button
               onClick={toggleSound}
               className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-colors"
@@ -274,6 +313,46 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               發音：{profile.voiceGender === 'en-US' ? '美式 🇺🇸' : '英式 🇬🇧'}
             </button>
+          </div>
+
+          {/* Font Size Selector Row in Mobile Menu */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
+            <span className="text-slate-300 font-bold flex items-center gap-1.5">
+              <Type className="h-4 w-4 text-indigo-400" />
+              字體大小：
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => onUpdateProfile({ ...profile, fontSizeMode: 'normal' })}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  currentFontSize === 'normal'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                標準
+              </button>
+              <button
+                onClick={() => onUpdateProfile({ ...profile, fontSizeMode: 'large' })}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  currentFontSize === 'large'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                大
+              </button>
+              <button
+                onClick={() => onUpdateProfile({ ...profile, fontSizeMode: 'huge' })}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  currentFontSize === 'huge'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                特大
+              </button>
+            </div>
           </div>
 
           {/* Quick Menu Items Grid */}

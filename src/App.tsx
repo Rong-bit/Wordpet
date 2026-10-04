@@ -66,6 +66,18 @@ export default function App() {
     soundFx.setEnabled(profile.soundEnabled);
   }, [profile.soundEnabled]);
 
+  // Dynamic Font Size Scaling Sync to HTML root element
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove('font-size-large', 'font-size-huge');
+    const mode = profile.fontSizeMode || 'large'; // Default to 'large' as user requested larger fonts!
+    if (mode === 'large') {
+      root.classList.add('font-size-large');
+    } else if (mode === 'huge') {
+      root.classList.add('font-size-huge');
+    }
+  }, [profile.fontSizeMode]);
+
   // Calculate due words & weak words
   const now = new Date().getTime();
   const dueWords = words.filter(w => new Date(w.nextReviewAt).getTime() <= now);

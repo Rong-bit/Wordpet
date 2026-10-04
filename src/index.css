@@ -10,6 +10,15 @@
   }
 }
 
+/* Accessibility & Dynamic Font Scaling */
+html.font-size-large {
+  font-size: 18px;
+}
+
+html.font-size-huge {
+  font-size: 20.5px;
+}
+
 @keyframes float-gentle {
   0%, 100% {
     transform: translateY(0px) rotate(0deg);

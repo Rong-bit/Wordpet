@@ -582,35 +582,35 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
             return (
               <div
                 key={w.id}
-                className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 hover:border-slate-700 transition-all hover:shadow-lg"
+                className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5 hover:border-slate-700 transition-all hover:shadow-lg"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-bold font-fun text-white">{w.word}</h3>
-                    <span className="text-xs text-slate-400 font-mono">{w.phonetic}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 font-semibold">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-xl sm:text-2xl font-black font-fun text-white tracking-wide">{w.word}</h3>
+                    <span className="text-sm text-slate-400 font-mono">{w.phonetic}</span>
+                    <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-indigo-300 font-bold">
                       {w.partOfSpeech}
                     </span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium">
+                    <span className="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-bold">
                       {categoryLabels[w.category] || w.category}
                     </span>
                     <button
                       onClick={() => speakEnglish(w.word, voiceGender, voiceSpeed)}
-                      className="text-slate-400 hover:text-indigo-400 p-1 transition-colors"
+                      className="text-slate-400 hover:text-indigo-400 p-1.5 transition-colors cursor-pointer"
                       title="朗讀"
                     >
-                      <Volume2 className="h-4 w-4" />
+                      <Volume2 className="h-4.5 w-4.5" />
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {/* Edit Word Button */}
                     <button
                       onClick={() => startEditingWord(w)}
                       className="p-1.5 rounded-lg text-xs text-slate-400 hover:text-indigo-300 hover:bg-slate-800 transition-colors cursor-pointer"
                       title="修改單字內容 (拼寫、中文、詞性、分類)"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <Pencil className="h-4 w-4" />
                     </button>
 
                     {/* Delete Word Button */}
@@ -619,7 +619,7 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                       className="p-1.5 rounded-lg text-xs text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
                       title="刪除此單字"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
 
                     {/* Weak Button Toggle */}
@@ -632,46 +632,46 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                       }`}
                       title={w.isWeak ? '已標記為易錯單字' : '標記為不熟/易錯'}
                     >
-                      <AlertTriangle className="h-3.5 w-3.5" />
+                      <AlertTriangle className="h-4 w-4" />
                     </button>
 
                     {/* Status Badge */}
                     {w.status === 'mastered' ? (
-                      <span className="rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] px-2 py-0.5 font-bold">
+                      <span className="rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs px-2 py-0.5 font-bold">
                         精通
                       </span>
                     ) : isDue ? (
-                      <span className="rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 font-bold">
+                      <span className="rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs px-2 py-0.5 font-bold">
                         今日待複習
                       </span>
                     ) : (
-                      <span className="rounded-md bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5">
+                      <span className="rounded-md bg-slate-800 text-slate-400 text-xs px-2 py-0.5">
                         間隔中
                       </span>
                     )}
                   </div>
                 </div>
 
-                <p className="text-sm font-bold text-amber-300 mt-1">{w.meaning}</p>
+                <p className="text-base sm:text-lg font-black text-amber-300 mt-2">{w.meaning}</p>
 
                 {/* Example sentence */}
-                <div className="mt-2.5 rounded-xl bg-slate-950/60 p-2.5 border border-slate-800/80 text-xs">
-                  <p className="text-slate-300 italic">{w.exampleEn}</p>
-                  <p className="text-slate-400 text-[11px] mt-0.5">{w.exampleZh}</p>
+                <div className="mt-3 rounded-xl bg-slate-950/60 p-3 border border-slate-800/80 text-sm">
+                  <p className="text-slate-200 italic leading-relaxed">"{w.exampleEn}"</p>
+                  <p className="text-slate-400 text-xs sm:text-sm mt-1">{w.exampleZh}</p>
                 </div>
 
                 {/* Notes */}
                 {w.confusionNotes && (
-                  <p className="mt-2 text-[11px] text-slate-400 line-clamp-2">
-                    💡 <span className="text-slate-300 font-medium">觀念解析：</span> {w.confusionNotes}
+                  <p className="mt-2.5 text-xs sm:text-sm text-slate-300 leading-relaxed">
+                    💡 <span className="text-amber-200/90 font-bold">觀念解析：</span> {w.confusionNotes}
                   </p>
                 )}
 
                 {/* Footer SRS metrics */}
-                <div className="mt-3 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                <div className="mt-3.5 pt-2.5 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-mono">
                   <span>重複次數: {w.repetition}</span>
                   <span>複習間隔: {w.intervalDays} 天</span>
-                  <span>正確連續: {w.consecutiveCorrect}</span>
+                  <span>連續正確: {w.consecutiveCorrect}</span>
                 </div>
               </div>
             );

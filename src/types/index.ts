@@ -159,4 +159,5 @@ export interface UserProfile {
   isOfflineMode: boolean;
   lastCloudSync: string | null;
   quizBatchSize?: number; // 每次測驗建議題數 (例如 20~30 題，預設 20 題)
+  fontSizeMode?: 'normal' | 'large' | 'huge'; // 字體大小模式 (normal: 標準, large: 大, huge: 特大)
 }
