@@ -24,6 +24,7 @@ import {
   Eye,
   HeartHandshake,
   Bot,
+  Unlock,
 } from 'lucide-react';
 
 interface BestiaryModalProps {
@@ -31,6 +32,7 @@ interface BestiaryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectPet?: (pet: Pet) => void;
+  onUnlockAllSpecies?: () => void;
   currentPetId?: string;
 }
 
@@ -41,7 +43,7 @@ interface ShowcasePetItem extends Pet {
   lore: string;
 }
 
-// Complete showcase catalog covering all major evolution lines
+// Complete showcase catalog covering all 12 species
 const ALL_SHOWCASE_PETS: ShowcasePetItem[] = [
   // --- 6 ULTIMATE MYTHIC FORMS ---
   {
@@ -581,6 +583,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
   isOpen,
   onClose,
   onSelectPet,
+  onUnlockAllSpecies,
   currentPetId,
 }) => {
   const [activeTab, setActiveTab] = useState<'showcase' | 'bestiary'>('showcase');
@@ -590,25 +593,35 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
 
   const currentPet = ALL_SHOWCASE_PETS[selectedIndex] || ALL_SHOWCASE_PETS[0];
 
+  const safeTap = () => {
+    try {
+      soundFx?.playTap?.();
+    } catch {
+      // ignore
+    }
+  };
+
   const handleSelectPetIndex = (idx: number) => {
-    soundFx.playTap();
+    safeTap();
     setSelectedIndex(idx);
-    confetti({ particleCount: 25, spread: 50, origin: { y: 0.6 } });
+    try {
+      confetti({ particleCount: 25, spread: 50, origin: { y: 0.6 } });
+    } catch {}
   };
 
   const handlePrevPet = () => {
-    soundFx.playTap();
+    safeTap();
     setSelectedIndex(prev => (prev > 0 ? prev - 1 : ALL_SHOWCASE_PETS.length - 1));
   };
 
   const handleNextPet = () => {
-    soundFx.playTap();
+    safeTap();
     setSelectedIndex(prev => (prev < ALL_SHOWCASE_PETS.length - 1 ? prev + 1 : 0));
   };
 
   // Switch to showcase and preview a specific species from bestiary list
   const handlePreviewSpeciesFromBestiary = (speciesId: string) => {
-    soundFx.playTap();
+    safeTap();
     const foundIdx = ALL_SHOWCASE_PETS.findIndex(p => p.speciesId === speciesId);
     if (foundIdx !== -1) {
       setSelectedIndex(foundIdx);
@@ -616,7 +629,9 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
       setSelectedIndex(0);
     }
     setActiveTab('showcase');
-    confetti({ particleCount: 30, spread: 60, origin: { y: 0.6 } });
+    try {
+      confetti({ particleCount: 30, spread: 60, origin: { y: 0.6 } });
+    } catch {}
   };
 
   const rarityBadge = (rarity: PetRarity) => {
@@ -652,7 +667,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                 神獸圖鑑與全形態展示館
               </h3>
               <p className="text-xs text-slate-400">
-                點選任意寵物查看高精度立體動態、天賦技能與進化樹
+                點選任意神獸可即時切換立體預覽、查看專屬天賦並設為冒險夥伴
               </p>
             </div>
           </div>
@@ -670,7 +685,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
           <button
             type="button"
             onClick={() => {
-              soundFx.playTap();
+              safeTap();
               setActiveTab('showcase');
             }}
             className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
@@ -680,12 +695,12 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
             }`}
           >
             <Crown className="h-4 w-4" />
-            👑 立體模型全覽 ({ALL_SHOWCASE_PETS.length} 隻可選)
+            👑 立體模型全覽 (12 隻神獸隨心點選)
           </button>
           <button
             type="button"
             onClick={() => {
-              soundFx.playTap();
+              safeTap();
               setActiveTab('bestiary');
             }}
             className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
@@ -705,10 +720,12 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
             <div className="space-y-4">
               {/* Pet Selection Grid / Chips (Fully visible without horizontal cutoff) */}
               <div>
-                <div className="text-xs font-bold text-slate-400 mb-2 flex items-center justify-between">
-                  <span>點擊下方任一寵物卡片切換預覽：</span>
-                  <span className="text-amber-400 font-normal text-[11px]">
-                    第 {selectedIndex + 1} / {ALL_SHOWCASE_PETS.length} 隻
+                <div className="text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-amber-300 font-bold">
+                    <span>👉</span> 點選下方任一隻神獸立即切換：
+                  </span>
+                  <span className="text-amber-400 font-bold text-[11px] bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800">
+                    目前預覽：第 {selectedIndex + 1} / {ALL_SHOWCASE_PETS.length} 隻
                   </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
@@ -719,16 +736,16 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                         type="button"
                         key={item.id}
                         onClick={() => handleSelectPetIndex(idx)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left border cursor-pointer ${
+                        className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-left border cursor-pointer ${
                           isSelected
-                            ? 'bg-slate-800 border-amber-400 text-amber-300 shadow-md ring-2 ring-amber-400/40 scale-[1.02]'
-                            : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                            ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-amber-400 text-amber-200 shadow-md ring-2 ring-amber-400/50 scale-[1.03]'
+                            : 'bg-slate-950/70 border-slate-800 text-slate-300 hover:border-amber-500/40 hover:bg-slate-800 hover:text-white'
                         }`}
                       >
                         <span className="shrink-0">{item.elementIcon}</span>
                         <span className="truncate">{item.name.split(' ')[0]}</span>
                         {isSelected && (
-                          <CheckCircle2 className="h-3 w-3 text-amber-400 shrink-0 ml-auto" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-amber-400 shrink-0 ml-auto" />
                         )}
                       </button>
                     );
@@ -747,20 +764,20 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                   <button
                     type="button"
                     onClick={handlePrevPet}
-                    className="absolute -left-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 shadow-lg cursor-pointer transition-transform active:scale-90"
-                    title="上一隻寵物"
+                    className="absolute -left-3 top-1/2 -translate-y-1/2 z-30 p-2.5 rounded-full bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-slate-200 border border-slate-700 shadow-xl cursor-pointer transition-all active:scale-90"
+                    title="上一隻神獸"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-5 w-5" />
                   </button>
 
                   {/* Right Next Arrow Button */}
                   <button
                     type="button"
                     onClick={handleNextPet}
-                    className="absolute -right-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 shadow-lg cursor-pointer transition-transform active:scale-90"
-                    title="下一隻寵物"
+                    className="absolute -right-3 top-1/2 -translate-y-1/2 z-30 p-2.5 rounded-full bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-slate-200 border border-slate-700 shadow-xl cursor-pointer transition-all active:scale-90"
+                    title="下一隻神獸"
                   >
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-5 w-5" />
                   </button>
 
                   {/* 3D/Canvas Pet */}
@@ -829,14 +846,18 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        soundFx.playHatch();
+                        try {
+                          soundFx?.playHatch?.();
+                        } catch {}
                         onSelectPet(currentPet);
-                        confetti({ particleCount: 80, spread: 80, origin: { y: 0.5 } });
+                        try {
+                          confetti({ particleCount: 80, spread: 80, origin: { y: 0.5 } });
+                        } catch {}
                       }}
-                      className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 py-2.5 px-4 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer active:scale-95"
+                      className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 py-3 px-4 text-sm font-black text-slate-950 shadow-xl shadow-amber-500/20 transition-all cursor-pointer active:scale-95"
                     >
-                      <HeartHandshake className="h-4 w-4" />
-                      設為當前出戰 / 陪伴寵物
+                      <HeartHandshake className="h-5 w-5" />
+                      💫 立即選定這隻神獸出戰（設為當前主寵物）
                     </button>
                   )}
                 </div>
@@ -845,8 +866,8 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
           ) : (
             /* Standard Bestiary Grid (with Instant 3D Preview Buttons) */
             <div className="space-y-3">
-              {/* Progress Bar Header */}
-              <div className="rounded-2xl bg-slate-950/60 p-4 border border-slate-800 flex items-center justify-between">
+              {/* Progress Bar Header & Unlock All Button */}
+              <div className="rounded-2xl bg-slate-950/60 p-4 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
                     <Trophy className="h-5 w-5" />
@@ -858,12 +879,31 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                     </p>
                   </div>
                 </div>
-                <div className="w-32">
-                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-amber-400"
-                      style={{ width: `${(unlockedCount / BESTIARY_DATA.length) * 100}%` }}
-                    />
+
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  {onUnlockAllSpecies && unlockedCount < BESTIARY_DATA.length && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        safeTap();
+                        onUnlockAllSpecies();
+                        try {
+                          confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+                        } catch {}
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all cursor-pointer"
+                    >
+                      <Unlock className="h-3.5 w-3.5" />
+                      一鍵全部解鎖 (免等待)
+                    </button>
+                  )}
+                  <div className="w-28 hidden sm:block">
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-amber-400"
+                        style={{ width: `${(unlockedCount / BESTIARY_DATA.length) * 100}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -910,7 +950,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                         {/* Preview Chip */}
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 group-hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all">
                           <Eye className="h-3 w-3" />
-                          點擊預覽
+                          點擊立體預覽
                         </span>
                       </div>
 
