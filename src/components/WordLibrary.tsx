@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Word, WordCategory } from '../types';
 import { speakEnglish } from '../utils/tts';
+import { getVerbForms, getNounForms } from '../utils/englishGrammar';
 import {
   Search,
   Plus,
@@ -37,17 +38,19 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
   const [filterMode, setFilterMode] = useState<'all' | 'due' | 'weak' | 'mastered'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // New Word Form State
+  // New Word Form State - Simplified & Clean
   const [newWord, setNewWord] = useState({
     word: '',
-    phonetic: '',
-    partOfSpeech: 'n.',
+    partOfSpeech: 'v.',
     meaning: '',
-    exampleEn: '',
-    exampleZh: '',
-    confusionNotes: '',
     category: 'custom' as WordCategory,
   });
+
+  const isVerb = newWord.partOfSpeech.startsWith('v');
+  const isNoun = newWord.partOfSpeech.startsWith('n');
+
+  const liveVerbForms = isVerb && newWord.word.trim() ? getVerbForms(newWord.word) : null;
+  const liveNounForms = isNoun && newWord.word.trim() ? getNounForms(newWord.word) : null;
 
   const now = new Date().getTime();
 
@@ -77,17 +80,39 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
 
   const handleCreateWord = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newWord.word.trim() || !newWord.meaning.trim()) return;
+    const trimmedWord = newWord.word.trim();
+    const trimmedMeaning = newWord.meaning.trim();
+    if (!trimmedWord || !trimmedMeaning) return;
+
+    let confusionNotes = '';
+    let exampleEn = '';
+    let exampleZh = '';
+
+    if (isVerb) {
+      const forms = getVerbForms(trimmedWord);
+      confusionNotes = `【動詞三態】原形：${forms.base} | 過去式：${forms.past} | 過去分詞：${forms.pastParticiple} | 現在分詞：${forms.ing}`;
+      exampleEn = `We should ${forms.base} this carefully.`;
+      exampleZh = `我們應該好好「${trimmedMeaning}」。`;
+    } else if (isNoun) {
+      const forms = getNounForms(trimmedWord);
+      confusionNotes = `【名詞複數變化】單數：${forms.singular} | 複數：${forms.plural}`;
+      exampleEn = `This is a ${forms.singular}, and these are ${forms.plural}.`;
+      exampleZh = `這是一個「${trimmedMeaning}」，那些是複數形態。`;
+    } else {
+      confusionNotes = `【${newWord.partOfSpeech}】重要自我擴充單字，持續複習以加深長期記憶。`;
+      exampleEn = `Remember the usage of "${trimmedWord}".`;
+      exampleZh = `請記住「${trimmedMeaning}」的語境用法。`;
+    }
 
     const created: Word = {
       id: `w_custom_${Date.now()}`,
-      word: newWord.word.trim(),
-      phonetic: newWord.phonetic.trim() || '/.../',
+      word: trimmedWord,
+      phonetic: `/${trimmedWord.toLowerCase()}/`,
       partOfSpeech: newWord.partOfSpeech,
-      meaning: newWord.meaning.trim(),
-      exampleEn: newWord.exampleEn.trim() || `Remember to practice using "${newWord.word}".`,
-      exampleZh: newWord.exampleZh.trim() || `記得多多練習使用這個單字。`,
-      confusionNotes: newWord.confusionNotes.trim() || '自訂單字：持續複習以加深長期記憶。',
+      meaning: trimmedMeaning,
+      exampleEn,
+      exampleZh,
+      confusionNotes,
       category: newWord.category,
       level: 2,
       repetition: 0,
@@ -106,12 +131,8 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
     setShowAddModal(false);
     setNewWord({
       word: '',
-      phonetic: '',
-      partOfSpeech: 'n.',
+      partOfSpeech: 'v.',
       meaning: '',
-      exampleEn: '',
-      exampleZh: '',
-      confusionNotes: '',
       category: 'custom',
     });
   };
@@ -347,15 +368,24 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
 
       {/* ADD CUSTOM WORD MODAL */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
-            <h3 className="text-xl font-bold font-fun text-white mb-4 flex items-center gap-2">
-              <Plus className="h-5 w-5 text-indigo-400" />
-              新增自我學習自訂單字
-            </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 p-5 sm:p-6 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+              <h3 className="text-lg font-bold font-fun text-white flex items-center gap-2">
+                <Plus className="h-5 w-5 text-indigo-400" />
+                新增單字
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
 
-            <form onSubmit={handleCreateWord} className="space-y-3">
-              <div className="grid grid-cols-3 gap-2">
+            <form onSubmit={handleCreateWord} className="space-y-3.5">
+              <div className="grid grid-cols-3 gap-2.5">
                 <div className="col-span-2">
                   <label className="block text-xs font-bold text-slate-300 mb-1">
                     英文單字 *
@@ -363,61 +393,30 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                   <input
                     type="text"
                     required
+                    autoFocus
                     value={newWord.word}
                     onChange={e => setNewWord({ ...newWord, word: e.target.value })}
-                    placeholder="e.g. serendipity"
-                    className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    placeholder="例如: take, study, child, box..."
+                    className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">
-                    詞性
+                    詞性 *
                   </label>
                   <select
                     value={newWord.partOfSpeech}
                     onChange={e => setNewWord({ ...newWord, partOfSpeech: e.target.value })}
-                    className="w-full rounded-xl bg-slate-800 border border-slate-700 px-2 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full rounded-xl bg-slate-800 border border-slate-700 px-2 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 font-bold"
                   >
-                    <option value="n.">n. 名詞</option>
                     <option value="v.">v. 動詞</option>
+                    <option value="n.">n. 名詞</option>
                     <option value="adj.">adj. 形容詞</option>
                     <option value="adv.">adv. 副詞</option>
-                    <option value="prep.">prep. 介系詞</option>
                     <option value="phr.">phr. 片語</option>
+                    <option value="prep.">prep. 介系詞</option>
                   </select>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  所屬詞庫分類
-                </label>
-                <select
-                  value={newWord.category}
-                  onChange={e => setNewWord({ ...newWord, category: e.target.value as WordCategory })}
-                  className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
-                >
-                  <option value="custom">⭐️ 自訂單字本</option>
-                  <option value="junior">國中必背單字</option>
-                  <option value="highschool">高中 7000 單</option>
-                  <option value="toeic">多益 TOEIC</option>
-                  <option value="toefl">托福 TOEFL</option>
-                  <option value="business">商務職場</option>
-                  <option value="daily">常用生活</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  音標 (選填)
-                </label>
-                <input
-                  type="text"
-                  value={newWord.phonetic}
-                  onChange={e => setNewWord({ ...newWord, phonetic: e.target.value })}
-                  placeholder="e.g. /ˌser.ənˈdɪp.ə.ti/"
-                  className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                />
               </div>
 
               <div>
@@ -429,61 +428,111 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                   required
                   value={newWord.meaning}
                   onChange={e => setNewWord({ ...newWord, meaning: e.target.value })}
-                  placeholder="e.g. 意外發現美好事物的機緣"
-                  className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  placeholder="例如: 拿取、接受；學習；孩子"
+                  className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
-                  英文例句 (選填)
+                  詞庫分類
                 </label>
-                <input
-                  type="text"
-                  value={newWord.exampleEn}
-                  onChange={e => setNewWord({ ...newWord, exampleEn: e.target.value })}
-                  placeholder="e.g. Finding this book was pure serendipity."
-                  className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                />
+                <select
+                  value={newWord.category}
+                  onChange={e => setNewWord({ ...newWord, category: e.target.value as WordCategory })}
+                  className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="custom">⭐️ 自訂單字本</option>
+                  <option value="junior">🎒 國中必背單字</option>
+                  <option value="highschool">🏫 高中 7000 單</option>
+                  <option value="toeic">💼 多益 TOEIC</option>
+                  <option value="toefl">🎓 托福 TOEFL</option>
+                  <option value="business">🏢 商務職場</option>
+                  <option value="daily">☕ 常用生活</option>
+                </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  中文例句翻譯 (選填)
-                </label>
-                <input
-                  type="text"
-                  value={newWord.exampleZh}
-                  onChange={e => setNewWord({ ...newWord, exampleZh: e.target.value })}
-                  placeholder="e.g. 找到這本書純屬意外的驚喜機緣。"
-                  className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                />
-              </div>
+              {/* AUTOMATIC GRAMMAR INFLECTION DISPLAY */}
+              {isVerb && (
+                <div className="rounded-2xl bg-indigo-950/60 border border-indigo-500/30 p-3.5 space-y-2 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-indigo-300 flex items-center gap-1.5">
+                      <Sparkles className="h-4 w-4 text-amber-400" />
+                      ⚡ 動詞三態（系統智慧自動生成）：
+                    </span>
+                    <span className="text-[10px] text-indigo-300/80 font-mono">自動存入單字卡</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2 text-center">
+                      <div className="text-[10px] text-slate-400 mb-0.5">原形 (Base)</div>
+                      <div className="font-bold font-mono text-amber-300 truncate">
+                        {liveVerbForms?.base || '—'}
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2 text-center">
+                      <div className="text-[10px] text-slate-400 mb-0.5">過去式 (Past)</div>
+                      <div className="font-bold font-mono text-emerald-300 truncate">
+                        {liveVerbForms?.past || '—'}
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2 text-center">
+                      <div className="text-[10px] text-slate-400 mb-0.5">過去分詞 (P.P.)</div>
+                      <div className="font-bold font-mono text-sky-300 truncate">
+                        {liveVerbForms?.pastParticiple || '—'}
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2 text-center">
+                      <div className="text-[10px] text-slate-400 mb-0.5">現在分詞 (-ing)</div>
+                      <div className="font-bold font-mono text-purple-300 truncate">
+                        {liveVerbForms?.ing || '—'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  記憶筆記 / 混淆字解析 (選填)
-                </label>
-                <input
-                  type="text"
-                  value={newWord.confusionNotes}
-                  onChange={e => setNewWord({ ...newWord, confusionNotes: e.target.value })}
-                  placeholder="e.g. 常考形容詞為 serendipitous"
-                  className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                />
-              </div>
+              {isNoun && (
+                <div className="rounded-2xl bg-indigo-950/60 border border-indigo-500/30 p-3.5 space-y-2 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-indigo-300 flex items-center gap-1.5">
+                      <Sparkles className="h-4 w-4 text-amber-400" />
+                      📦 名詞複數變化（系統智慧自動生成）：
+                    </span>
+                    <span className="text-[10px] text-indigo-300/80 font-mono">自動存入單字卡</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5 text-xs">
+                    <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 text-center">
+                      <div className="text-[10px] text-slate-400 mb-0.5">單數 (Singular)</div>
+                      <div className="font-bold font-mono text-amber-300 truncate">
+                        {liveNounForms?.singular || '—'}
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 text-center">
+                      <div className="text-[10px] text-slate-400 mb-0.5">複數 (Plural)</div>
+                      <div className="font-bold font-mono text-emerald-300 truncate">
+                        {liveNounForms?.plural || '—'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              <div className="flex items-center justify-end gap-2 pt-3">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800"
+                  className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   取消
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/30"
+                  disabled={!newWord.word.trim() || !newWord.meaning.trim()}
+                  className={`rounded-xl px-5 py-2 text-xs font-bold text-white transition-all shadow-lg active:scale-95 cursor-pointer ${
+                    !newWord.word.trim() || !newWord.meaning.trim()
+                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                      : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30'
+                  }`}
                 >
                   確認建立加入字庫
                 </button>
