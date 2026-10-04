@@ -384,9 +384,9 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                 {/* Radial Glow Effect */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(245,158,11,0.15),transparent_60%)] pointer-events-none" />
 
-                {/* Animated Pet Canvas Box */}
-                <div className="relative w-56 h-56 sm:w-64 sm:h-64 flex-shrink-0 flex items-center justify-center p-2 rounded-3xl bg-slate-950/70 border border-slate-800/80 shadow-inner group">
-                  <PetCanvas pet={currentShowcasePet} />
+                {/* Animated Pet Canvas Box with Expanded Breathable Space */}
+                <div className="relative w-72 h-72 sm:w-80 sm:h-80 flex-shrink-0 flex items-center justify-center p-2 rounded-3xl bg-slate-950/70 border border-slate-800/80 shadow-inner overflow-visible group">
+                  <PetCanvas pet={currentShowcasePet} size="hero" />
                   
                   {/* Stage badge */}
                   <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] font-black flex items-center gap-1">

@@ -3,7 +3,7 @@ import { Pet } from '../types';
 
 interface PetCanvasProps {
   pet: Pet;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'hero' | 'fullscreen';
   interactive?: boolean;
   onClick?: () => void;
   showStatusAura?: boolean;
@@ -18,12 +18,14 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
 }) => {
   const { stage, genes, customization, mood, health } = pet;
 
-  // Dimension scaling
+  // Dimension scaling with generous breathing room
   const sizeMap = {
     sm: 'w-24 h-24',
     md: 'w-40 h-40',
-    lg: 'w-64 h-64',
-    xl: 'w-80 h-80',
+    lg: 'w-64 h-64 sm:w-72 sm:h-72',
+    xl: 'w-80 h-80 sm:w-96 sm:h-96',
+    hero: 'w-72 h-72 sm:w-88 sm:h-88 md:w-96 md:h-96',
+    fullscreen: 'w-full max-w-[460px] aspect-square',
   };
 
   const isEgg = stage === 'egg';
@@ -36,29 +38,29 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
   const secondary = genes.secondaryColor || '#EF4444';
   const glow = genes.glowColor || '#FBBF24';
 
-  // Determine stage scale inside SVG
+  // Stage internal scale inside SVG
   let petScale = 1.0;
-  if (stage === 'egg') petScale = 0.85;
-  else if (stage === 'baby') petScale = 0.9;
+  if (stage === 'egg') petScale = 0.88;
+  else if (stage === 'baby') petScale = 0.92;
   else if (stage === 'juvenile') petScale = 1.05;
-  else if (stage === 'adult') petScale = 1.2;
-  else if (stage === 'ultimate') petScale = 1.35;
+  else if (stage === 'adult') petScale = 1.15;
+  else if (stage === 'ultimate') petScale = 1.25;
 
   return (
     <div
       onClick={onClick}
-      className={`relative flex items-center justify-center select-none ${sizeMap[size]} ${
-        interactive ? 'cursor-pointer transition-transform hover:scale-105 active:scale-95' : ''
+      className={`relative flex items-center justify-center select-none overflow-visible ${sizeMap[size]} ${
+        interactive ? 'cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95' : ''
       }`}
     >
       {/* Background glow or particle aura */}
       {showStatusAura && (
         <div
-          className={`absolute inset-0 rounded-full blur-2xl opacity-40 transition-all duration-700 pointer-events-none ${
+          className={`absolute inset-0 rounded-full blur-3xl opacity-35 transition-all duration-700 pointer-events-none ${
             isUltimate
               ? 'animate-pulse scale-125'
               : isWeak
-              ? 'opacity-20 scale-75'
+              ? 'opacity-15 scale-75'
               : 'scale-100'
           }`}
           style={{
@@ -71,10 +73,10 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
         />
       )}
 
-      {/* SVG Pet Container */}
+      {/* SVG Pet Container with expanded -40 -40 280 280 viewBox so wings, halos & horns never get cut off */}
       <svg
-        viewBox="0 0 200 200"
-        className={`w-full h-full filter drop-shadow-lg transition-transform duration-500 ${
+        viewBox="-40 -40 280 280"
+        className={`w-full h-full overflow-visible filter drop-shadow-2xl transition-transform duration-500 ${
           isWeak ? 'opacity-85 translate-y-2' : isEcstatic ? 'animate-float' : ''
         }`}
       >
@@ -97,16 +99,39 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
           </pattern>
         </defs>
 
-        {/* --- ULTIMATE DIVINE HALO / ENERGY ORBITS --- */}
+        {/* --- ULTIMATE DIVINE HALO / ENERGY ORBITS (Wide Radius) --- */}
         {isUltimate && (
           <g className="animate-spin" style={{ transformOrigin: '100px 100px', animationDuration: '14s' }}>
-            <circle cx="100" cy="100" r="82" fill="none" stroke={glow} strokeWidth="2.5" strokeDasharray="10 6 3 6" opacity="0.75" />
-            <circle cx="100" cy="18" r="4.5" fill={glow} />
-            <circle cx="182" cy="100" r="4.5" fill={primary} />
-            <circle cx="100" cy="182" r="4.5" fill={glow} />
-            <circle cx="18" cy="100" r="4.5" fill={primary} />
+            <circle
+              cx="100"
+              cy="100"
+              r="86"
+              fill="none"
+              stroke={glow}
+              strokeWidth="2.5"
+              strokeDasharray="10 6 3 6"
+              opacity="0.8"
+            />
+            <circle cx="100" cy="14" r="5" fill={glow} />
+            <circle cx="186" cy="100" r="5" fill={primary} />
+            <circle cx="100" cy="186" r="5" fill={glow} />
+            <circle cx="14" cy="100" r="5" fill={primary} />
           </g>
         )}
+
+        {/* Floating Sanctuary Pedestal Shadow below pet */}
+        <ellipse cx="100" cy="170" rx="65" ry="14" fill="rgba(0,0,0,0.35)" />
+        <ellipse
+          cx="100"
+          cy="168"
+          rx="55"
+          ry="10"
+          fill="none"
+          stroke={glow}
+          strokeWidth="1.5"
+          opacity={isUltimate ? '0.7' : '0.3'}
+          strokeDasharray="4 4"
+        />
 
         {/* Main Pet Body Scale Group */}
         <g transform={`translate(100 100) scale(${petScale}) translate(-100 -100)`}>
@@ -117,13 +142,13 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
               <path
                 d={
                   genes.wings === 'mecha'
-                    ? 'M 60,90 L 15,65 L 30,110 L 60,105 Z'
+                    ? 'M 60,90 L 5,60 L 25,115 L 60,105 Z'
                     : genes.wings === 'dragon'
-                    ? 'M 60,95 Q 10,60 25,120 Q 50,115 65,105 Z'
-                    : 'M 65,95 C 20,60 10,110 58,115 Z'
+                    ? 'M 60,95 Q -5,55 15,125 Q 45,115 65,105 Z'
+                    : 'M 65,95 C 10,55 0,115 58,115 Z'
                 }
                 fill={isWeak ? '#6B7280' : primary}
-                opacity="0.85"
+                opacity="0.9"
                 stroke={glow}
                 strokeWidth="1.5"
               />
@@ -131,13 +156,13 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
               <path
                 d={
                   genes.wings === 'mecha'
-                    ? 'M 140,90 L 185,65 L 170,110 L 140,105 Z'
+                    ? 'M 140,90 L 195,60 L 175,115 L 140,105 Z'
                     : genes.wings === 'dragon'
-                    ? 'M 140,95 Q 190,60 175,120 Q 150,115 135,105 Z'
-                    : 'M 135,95 C 180,60 190,110 142,115 Z'
+                    ? 'M 140,95 Q 205,55 185,125 Q 155,115 135,105 Z'
+                    : 'M 135,95 C 190,55 200,115 142,115 Z'
                 }
                 fill={isWeak ? '#6B7280' : primary}
-                opacity="0.85"
+                opacity="0.9"
                 stroke={glow}
                 strokeWidth="1.5"
               />
@@ -157,9 +182,6 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
           {isEgg ? (
             /* EGG STAGE */
             <g>
-              {/* Egg Shadow */}
-              <ellipse cx="100" cy="165" rx="35" ry="10" fill="rgba(0,0,0,0.3)" />
-
               {/* Egg Shell */}
               <path
                 d="M 100,35 C 145,35 155,145 100,155 C 45,145 55,35 100,35 Z"
@@ -195,15 +217,12 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
           ) : (
             /* CREATURE BODY */
             <g>
-              {/* Shadow */}
-              <ellipse cx="100" cy="160" rx="38" ry="12" fill="rgba(0,0,0,0.25)" />
-
               {/* Tail */}
               <path
-                d="M 60,135 Q 30,150 40,170 Q 55,160 70,145 Z"
+                d="M 60,135 Q 25,150 35,172 Q 55,160 70,145 Z"
                 fill={`url(#grad_body_${pet.id})`}
                 stroke={glow}
-                strokeWidth="1"
+                strokeWidth="1.5"
               />
 
               {/* Main Body */}
@@ -224,50 +243,52 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
                 rx="26"
                 ry="28"
                 fill="#FEF3C7"
-                opacity={isWeak ? "0.4" : "0.85"}
+                opacity={isWeak ? '0.4' : '0.85'}
               />
 
-              {/* Horns or Halo */}
+              {/* Horns or Antlers */}
               {genes.horns === 'crystal' && (
                 <g>
-                  <polygon points="85,75 80,45 92,68" fill="#38BDF8" stroke="#E0F2FE" strokeWidth="1" />
-                  <polygon points="115,75 120,45 108,68" fill="#38BDF8" stroke="#E0F2FE" strokeWidth="1" />
+                  <polygon points="85,75 80,40 92,68" fill="#38BDF8" stroke="#E0F2FE" strokeWidth="1" />
+                  <polygon points="115,75 120,40 108,68" fill="#38BDF8" stroke="#E0F2FE" strokeWidth="1" />
                 </g>
               )}
               {genes.horns === 'dragon' && (
                 <g>
-                  <path d="M 80,75 C 65,50 60,40 50,45 C 65,55 75,70 82,80 Z" fill={secondary} />
-                  <path d="M 120,75 C 135,50 140,40 150,45 C 135,55 125,70 118,80 Z" fill={secondary} />
+                  <path d="M 80,75 C 65,45 55,35 45,40 C 62,55 75,70 82,80 Z" fill={secondary} />
+                  <path d="M 120,75 C 135,45 145,35 155,40 C 138,55 125,70 118,80 Z" fill={secondary} />
                 </g>
               )}
               {genes.horns === 'angel_halo' && (
-                <ellipse cx="100" cy="55" rx="32" ry="8" fill="none" stroke="#FDE047" strokeWidth="3" />
+                <ellipse cx="100" cy="52" rx="34" ry="9" fill="none" stroke="#FDE047" strokeWidth="3" />
               )}
               {genes.horns === 'cyber_antennae' && (
                 <g>
-                  <line x1="88" y1="75" x2="75" y2="48" stroke="#06B6D4" strokeWidth="2.5" />
-                  <circle cx="75" cy="48" r="4" fill="#22D3EE" />
-                  <line x1="112" y1="75" x2="125" y2="48" stroke="#06B6D4" strokeWidth="2.5" />
-                  <circle cx="125" cy="48" r="4" fill="#22D3EE" />
+                  <line x1="88" y1="75" x2="72" y2="44" stroke="#06B6D4" strokeWidth="2.5" />
+                  <circle cx="72" cy="44" r="4.5" fill="#22D3EE" />
+                  <line x1="112" y1="75" x2="128" y2="44" stroke="#06B6D4" strokeWidth="2.5" />
+                  <circle cx="128" cy="44" r="4.5" fill="#22D3EE" />
+                </g>
+              )}
+              {genes.horns === 'antlers' && (
+                <g stroke="#10B981" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M 82,75 C 75,50 60,40 50,35 M 65,48 C 55,48 50,55 45,55" fill="none" />
+                  <path d="M 118,75 C 125,50 140,40 150,35 M 135,48 C 145,48 150,55 155,55" fill="none" />
                 </g>
               )}
 
               {/* Ears */}
-              <polygon points="72,82 62,52 86,75" fill={primary} stroke={glow} strokeWidth="1.5" />
-              <polygon points="128,82 138,52 114,75" fill={primary} stroke={glow} strokeWidth="1.5" />
+              <polygon points="72,82 60,50 86,75" fill={primary} stroke={glow} strokeWidth="1.5" />
+              <polygon points="128,82 140,50 114,75" fill={primary} stroke={glow} strokeWidth="1.5" />
 
               {/* Face Details */}
               {isWeak ? (
                 /* Dizzy / Weak Face */
                 <g>
-                  {/* Spiral / X Eyes */}
                   <text x="80" y="112" fontSize="16" fill="#1F2937" fontWeight="bold">✕</text>
                   <text x="108" y="112" fontSize="16" fill="#1F2937" fontWeight="bold">✕</text>
-                  {/* Sad mouth */}
                   <path d="M 94,132 Q 100,126 106,132" fill="none" stroke="#1F2937" strokeWidth="2" strokeLinecap="round" />
-                  {/* Sweat drops */}
                   <path d="M 68,90 Q 64,80 66,76 Q 72,82 68,90 Z" fill="#60A5FA" />
-                  {/* Forehead bandage */}
                   <rect x="90" y="76" width="20" height="7" rx="2" fill="#FDE68A" transform="rotate(-10 100 80)" stroke="#D97706" strokeWidth="0.8" />
                 </g>
               ) : (
@@ -309,33 +330,33 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
             </g>
           )}
 
-          {/* --- CUSTOMIZATION: HATS --- */}
+          {/* --- CUSTOMIZATION: HATS & CROWNS --- */}
           {customization.hat === 'wizard_hat' && (
             <g>
               <ellipse cx="100" cy="74" rx="35" ry="8" fill="#4C1D95" stroke="#A78BFA" strokeWidth="1" />
-              <polygon points="100,18 78,72 122,72" fill="#5B21B6" stroke="#C4B5FD" strokeWidth="1" />
-              <circle cx="100" cy="18" r="4.5" fill="#FBBF24" />
+              <polygon points="100,15 78,72 122,72" fill="#5B21B6" stroke="#C4B5FD" strokeWidth="1" />
+              <circle cx="100" cy="15" r="4.5" fill="#FBBF24" />
             </g>
           )}
-          {customization.hat === 'crown' && (
+          {(customization.hat === 'crown' || pet.accessory === 'crown') && (
             <g>
-              <polygon points="76,74 76,52 86,62 100,48 114,62 124,52 124,74" fill="#FBBF24" stroke="#D97706" strokeWidth="1.5" />
-              <circle cx="100" cy="48" r="3" fill="#EF4444" />
-              <circle cx="76" cy="52" r="2.5" fill="#3B82F6" />
-              <circle cx="124" cy="52" r="2.5" fill="#10B981" />
+              <polygon points="74,74 74,48 85,60 100,44 115,60 126,48 126,74" fill="#FBBF24" stroke="#D97706" strokeWidth="1.5" />
+              <circle cx="100" cy="44" r="3" fill="#EF4444" />
+              <circle cx="74" cy="48" r="2.5" fill="#3B82F6" />
+              <circle cx="126" cy="48" r="2.5" fill="#10B981" />
             </g>
           )}
           {customization.hat === 'graduation_cap' && (
             <g>
-              <polygon points="100,50 65,65 100,75 135,65" fill="#1E293B" stroke="#475569" strokeWidth="1" />
-              <rect x="85" y="70" width="30" height="12" fill="#0F172A" rx="2" />
-              <line x1="100" y1="62" x2="132" y2="76" stroke="#FBBF24" strokeWidth="2" />
-              <circle cx="132" cy="76" r="3" fill="#F59E0B" />
+              <polygon points="100,48 65,63 100,73 135,63" fill="#1E293B" stroke="#475569" strokeWidth="1" />
+              <rect x="85" y="68" width="30" height="12" fill="#0F172A" rx="2" />
+              <line x1="100" y1="60" x2="132" y2="74" stroke="#FBBF24" strokeWidth="2" />
+              <circle cx="132" cy="74" r="3" fill="#F59E0B" />
             </g>
           )}
           {customization.hat === 'headphones' && (
             <g>
-              <path d="M 68,105 C 68,60 132,60 132,105" fill="none" stroke="#EF4444" strokeWidth="4.5" strokeLinecap="round" />
+              <path d="M 68,105 C 68,55 132,55 132,105" fill="none" stroke="#EF4444" strokeWidth="4.5" strokeLinecap="round" />
               <rect x="62" y="98" width="12" height="18" rx="4" fill="#DC2626" />
               <rect x="126" y="98" width="12" height="18" rx="4" fill="#DC2626" />
             </g>
@@ -349,6 +370,12 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
           )}
 
           {/* --- CUSTOMIZATION: ACCESSORY --- */}
+          {(customization.accessory === 'halo' || pet.accessory === 'halo') && (
+            <ellipse cx="100" cy="46" rx="36" ry="10" fill="none" stroke="#FDE047" strokeWidth="3" />
+          )}
+          {(customization.accessory === 'scarf' || pet.accessory === 'scarf') && !isEgg && (
+            <path d="M 75,130 Q 100,140 125,130 Q 130,138 120,145 Q 100,150 78,142 Z" fill="#EF4444" stroke="#B91C1C" strokeWidth="1" />
+          )}
           {customization.accessory === 'medal' && !isEgg && (
             <g>
               <polygon points="95,134 100,126 105,134" fill="#3B82F6" />
@@ -367,12 +394,12 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
 
       {/* Danger escape warning badge */}
       {mood === 'danger_escape' && (
-        <div className="absolute top-1 right-1 bg-red-600/90 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-lg animate-bounce border border-red-400">
+        <div className="absolute top-1 right-1 bg-red-600/90 text-white text-xs px-2.5 py-1 rounded-full font-bold shadow-lg animate-bounce border border-red-400">
           ⚠️ 瀕臨逃跑！
         </div>
       )}
       {mood === 'weak' && (
-        <div className="absolute top-1 right-1 bg-amber-600/90 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow border border-amber-400">
+        <div className="absolute top-1 right-1 bg-amber-600/90 text-white text-xs px-2.5 py-1 rounded-full font-bold shadow border border-amber-400">
           💤 虛弱狀態
         </div>
       )}
