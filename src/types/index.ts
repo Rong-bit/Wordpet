@@ -1,4 +1,4 @@
-export type WordCategory = 'daily' | 'toeic' | 'toefl' | 'highschool' | 'business' | 'custom';
+export type WordCategory = 'daily' | 'junior' | 'toeic' | 'toefl' | 'highschool' | 'business' | 'custom';
 
 export type WordStatus = 'new' | 'learning' | 'reviewing' | 'mastered';
 

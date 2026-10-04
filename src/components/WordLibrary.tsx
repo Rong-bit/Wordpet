@@ -118,13 +118,24 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
 
   const categories = [
     { id: 'all', label: '全部單字' },
-    { id: 'custom', label: '⭐️ 自訂單字本' },
+    { id: 'junior', label: '國中必背單字' },
+    { id: 'highschool', label: '高中 7000 單' },
     { id: 'toeic', label: '多益 TOEIC' },
     { id: 'toefl', label: '托福 TOEFL' },
-    { id: 'highschool', label: '高中 7000 單' },
     { id: 'business', label: '商務職場' },
     { id: 'daily', label: '常用生活' },
+    { id: 'custom', label: '⭐️ 自訂單字本' },
   ];
+
+  const categoryLabels: Record<string, string> = {
+    junior: '國中必背',
+    highschool: '高中 7000',
+    toeic: '多益 TOEIC',
+    toefl: '托福 TOEFL',
+    business: '商務職場',
+    daily: '常用生活',
+    custom: '自訂',
+  };
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
@@ -264,6 +275,9 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 font-semibold">
                       {w.partOfSpeech}
                     </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium">
+                      {categoryLabels[w.category] || w.category}
+                    </span>
                     <button
                       onClick={() => speakEnglish(w.word, voiceGender, voiceSpeed)}
                       className="text-slate-400 hover:text-indigo-400 p-1 transition-colors"
@@ -372,6 +386,25 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                     <option value="phr.">phr. 片語</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  所屬詞庫分類
+                </label>
+                <select
+                  value={newWord.category}
+                  onChange={e => setNewWord({ ...newWord, category: e.target.value as WordCategory })}
+                  className="w-full rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="custom">⭐️ 自訂單字本</option>
+                  <option value="junior">國中必背單字</option>
+                  <option value="highschool">高中 7000 單</option>
+                  <option value="toeic">多益 TOEIC</option>
+                  <option value="toefl">托福 TOEFL</option>
+                  <option value="business">商務職場</option>
+                  <option value="daily">常用生活</option>
+                </select>
               </div>
 
               <div>

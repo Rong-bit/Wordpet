@@ -62,7 +62,12 @@ export function loadAppState(): AppState {
 
   try {
     const sWords = localStorage.getItem(STORAGE_KEYS.WORDS);
-    if (sWords) words = JSON.parse(sWords);
+    if (sWords) {
+      const parsedWords: Word[] = JSON.parse(sWords);
+      const existingIds = new Set(parsedWords.map(w => w.id));
+      const missingInitialWords = INITIAL_WORDS.filter(w => !existingIds.has(w.id));
+      words = [...parsedWords, ...missingInitialWords];
+    }
 
     const sPet = localStorage.getItem(STORAGE_KEYS.PET);
     if (sPet) pet = JSON.parse(sPet);
