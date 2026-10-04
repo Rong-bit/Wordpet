@@ -58,6 +58,9 @@ export default function App() {
     saveAppState(appState);
   }, [appState]);
 
+  // Selected category filter for Home Adventure Quiz
+  const [homeQuizCategory, setHomeQuizCategory] = useState<string>('all');
+
   // Audio settings sync
   useEffect(() => {
     soundFx.setEnabled(profile.soundEnabled);
@@ -68,6 +71,32 @@ export default function App() {
   const dueWords = words.filter(w => new Date(w.nextReviewAt).getTime() <= now);
   const weakWords = words.filter(w => w.isWeak);
   const masteredWords = words.filter(w => w.status === 'mastered');
+
+  // Current category words on Home page
+  const homeCategoryWords = homeQuizCategory === 'all'
+    ? words
+    : words.filter(w => w.category === homeQuizCategory);
+
+  const homeCategoryDueWords = homeCategoryWords.filter(
+    w => new Date(w.nextReviewAt).getTime() <= now
+  );
+
+  const currentQuizList = homeQuizCategory === 'all'
+    ? (dueWords.length > 0 ? dueWords : words.slice(0, 10))
+    : (homeCategoryDueWords.length > 0 ? homeCategoryDueWords : homeCategoryWords);
+
+  const HOME_QUIZ_CATEGORIES = [
+    { id: 'all', label: '全部單字 (SRS)', shortLabel: '全部單字' },
+    { id: 'junior', label: '🎒 國中必背', shortLabel: '國中必背' },
+    { id: 'highschool', label: '🏫 高中 7000', shortLabel: '高中 7000' },
+    { id: 'toeic', label: '💼 多益 TOEIC', shortLabel: '多益' },
+    { id: 'toefl', label: '🎓 托福 TOEFL', shortLabel: '托福' },
+    { id: 'business', label: '🏢 商務職場', shortLabel: '商務' },
+    { id: 'daily', label: '☕ 常用生活', shortLabel: '生活' },
+    { id: 'custom', label: '⭐️ 自訂單字', shortLabel: '自訂' },
+  ];
+
+  const selectedCategoryObj = HOME_QUIZ_CATEGORIES.find(c => c.id === homeQuizCategory) || HOME_QUIZ_CATEGORIES[0];
 
   // --- ACTIONS ---
 
@@ -446,36 +475,91 @@ export default function App() {
                       </div>
 
                       <h2 className="text-2xl sm:text-3xl font-bold font-fun text-white tracking-wide">
-                        {dueWords.length > 0
-                          ? `今日有 ${dueWords.length} 個單字已達最佳複習時機！`
-                          : '太棒了！今日待複習單字已全部清空！'}
+                        {homeQuizCategory === 'all'
+                          ? (dueWords.length > 0
+                              ? `今日有 ${dueWords.length} 個單字已達最佳複習時機！`
+                              : '太棒了！今日待複習單字已全部清空！')
+                          : `【${selectedCategoryObj.label}】題庫 (${homeCategoryWords.length} 個單字)`}
                       </h2>
 
                       <p className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl">
                         {pet.stage === 'egg'
-                          ? '你的【星紋起源蛋】正在汲取知識養分！每次完成測驗裂痕都會加深，達到 Lv.2 即可破殼孵化專屬神獸！'
-                          : '及時複習能強化神經突觸記憶，並為神獸提供豐厚飽食與經驗！若放任一天不複習，寵物會逐漸虛弱喔！'}
+                          ? `你的【星紋起源蛋】正在汲取「${selectedCategoryObj.shortLabel}」知識養分！每次完成測驗裂痕都會加深，達到 Lv.2 即可破殼孵化專屬神獸！`
+                          : homeQuizCategory === 'all'
+                            ? '及時複習能強化神經突觸記憶，並為神獸提供豐厚飽食與經驗！若放任一天不複習，寵物會逐漸虛弱喔！'
+                            : `專注特訓【${selectedCategoryObj.shortLabel}】單字！複習完成將同步灌注經驗值給神獸，並推進每日學習成就！`}
                       </p>
 
+                      {/* Category Selection Filter Pills */}
+                      <div className="mt-4 pt-4 border-t border-slate-800/80">
+                        <div className="flex items-center justify-between text-xs text-slate-400 mb-2.5">
+                          <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                            <BookOpen className="h-3.5 w-3.5 text-indigo-400" />
+                            🎯 選擇冒險測驗題庫範疇：
+                          </span>
+                          <span className="text-[11px] text-indigo-300 font-medium">
+                            {homeQuizCategory === 'all'
+                              ? `全庫 ${words.length} 字・待複習 ${dueWords.length} 字`
+                              : `已選 ${homeCategoryWords.length} 字・待複習 ${homeCategoryDueWords.length} 字`}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 overflow-x-auto pb-1.5 no-scrollbar">
+                          {HOME_QUIZ_CATEGORIES.map(cat => {
+                            const isSelected = homeQuizCategory === cat.id;
+                            const count = cat.id === 'all' 
+                              ? words.length 
+                              : words.filter(w => w.category === cat.id).length;
+                            return (
+                              <button
+                                key={cat.id}
+                                type="button"
+                                onClick={() => setHomeQuizCategory(cat.id)}
+                                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/40 ring-1 ring-indigo-400/50 scale-105'
+                                    : 'bg-slate-950/70 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+                                }`}
+                              >
+                                <span>{cat.label}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                                  isSelected ? 'bg-indigo-800 text-indigo-100' : 'bg-slate-800/80 text-slate-400'
+                                }`}>
+                                  {count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       {/* Main Action Buttons */}
-                      <div className="mt-6 flex flex-wrap items-center gap-3">
+                      <div className="mt-5 flex flex-wrap items-center gap-3">
                         <button
+                          disabled={currentQuizList.length === 0}
                           onClick={() => {
-                            setCustomQuizList(null);
+                            if (homeQuizCategory === 'all') {
+                              setCustomQuizList(null);
+                            } else {
+                              setCustomQuizList(currentQuizList);
+                            }
                             setIsQuizActive(true);
                           }}
-                          className="flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 px-6 py-3.5 text-sm font-bold text-white transition-all shadow-lg shadow-indigo-600/30 active:scale-95 cursor-pointer"
+                          className={`flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold text-white transition-all shadow-lg active:scale-95 cursor-pointer ${
+                            currentQuizList.length === 0
+                              ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                              : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-600/30'
+                          }`}
                         >
                           <Play className="h-4 w-4 fill-white" />
                           {pet.stage === 'egg'
-                            ? `🥚 開始測驗・破殼孵化 (${dueWords.length > 0 ? `${dueWords.length} 題` : '5 題'})`
-                            : `開始智慧測驗 (${dueWords.length > 0 ? `${dueWords.length} 題` : '自由複習'})`}
+                            ? `🥚 開始【${selectedCategoryObj.shortLabel}】測驗・破殼孵化 (${currentQuizList.length} 題)`
+                            : `開始【${selectedCategoryObj.shortLabel}】智慧測驗 (${currentQuizList.length} 題)`}
                         </button>
 
                         {weakWords.length > 0 && (
                           <button
                             onClick={() => setIsWeakDrillActive(true)}
-                            className="flex items-center gap-2 rounded-2xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 px-5 py-3.5 text-sm font-bold text-rose-300 transition-all active:scale-95"
+                            className="flex items-center gap-2 rounded-2xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 px-5 py-3.5 text-sm font-bold text-rose-300 transition-all active:scale-95 cursor-pointer"
                           >
                             <Flame className="h-4 w-4 text-rose-400 animate-pulse" />
                             弱點加強特訓 ({weakWords.length} 字)
