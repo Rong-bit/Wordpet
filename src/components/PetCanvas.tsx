@@ -89,13 +89,18 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
       ? '#E9D5FF'
       : '#FBCFE8');
 
-  // Stage internal scale inside SVG
-  let petScale = 1.0;
-  if (stage === 'egg') petScale = 0.88;
-  else if (stage === 'baby') petScale = 0.92;
-  else if (stage === 'juvenile') petScale = 1.05;
-  else if (stage === 'adult') petScale = 1.15;
-  else if (stage === 'ultimate') petScale = 1.25;
+  // Stage base scale inside SVG + level-based continuous growth
+  let baseScale = 1.0;
+  if (stage === 'egg') baseScale = 0.88;
+  else if (stage === 'baby') baseScale = 0.94;
+  else if (stage === 'juvenile') baseScale = 1.06;
+  else if (stage === 'adult') baseScale = 1.18;
+  else if (stage === 'ultimate') baseScale = 1.28;
+
+  // Real-time continuous growth based on pet.level (from Lv.1 to Lv.50)
+  const currentLevel = Math.max(1, pet?.level || 1);
+  const levelGrowth = Math.min(0.14, (currentLevel / 50) * 0.14);
+  const petScale = +(baseScale + (stage === 'egg' ? 0 : levelGrowth)).toFixed(3);
 
   const wingsType = genes?.wings || (stage === 'adult' || stage === 'ultimate' ? 'dragon' : 'none');
   const hornsType = genes?.horns || 'none';
