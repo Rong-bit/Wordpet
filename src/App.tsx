@@ -707,25 +707,6 @@ export default function App() {
           }));
           setShowBestiary(false);
         }}
-        onUnlockAllSpecies={() => {
-          setAppState(prev => ({
-            ...prev,
-            unlockedSpecies: [
-              'p_egg_genesis',
-              'p_fire_dragon_1',
-              'p_fire_dragon_2',
-              'p_fire_ultimate',
-              'p_frost_fox_1',
-              'p_frost_ultimate',
-              'p_nature_deer_1',
-              'p_nature_ultimate',
-              'p_thunder_falcon_1',
-              'p_void_shadow_1',
-              'p_radiant_angel_1',
-              'p_cyber_mecha_ultimate',
-            ],
-          }));
-        }}
         onSelectPet={selectedPet => {
           setAppState(prev => ({
             ...prev,

@@ -33,7 +33,6 @@ interface BestiaryModalProps {
   onClose: () => void;
   onSelectPet?: (pet: Pet) => void;
   onResetToEgg?: () => void;
-  onUnlockAllSpecies?: () => void;
   currentPetId?: string;
 }
 
@@ -585,7 +584,6 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
   onClose,
   onSelectPet,
   onResetToEgg,
-  onUnlockAllSpecies,
   currentPetId,
 }) => {
   const [activeTab, setActiveTab] = useState<'showcase' | 'bestiary'>('showcase');
@@ -864,30 +862,13 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                           💫 選定這隻已解鎖神獸出戰
                         </button>
                       ) : (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800 text-xs text-slate-400">
-                            <span className="flex items-center gap-1.5 text-amber-400/90 font-bold">
-                              <Lock className="h-4 w-4" /> 冒險模式尚未解鎖
-                            </span>
-                            <span className="text-[11px] text-slate-400">
-                              需從起源蛋培育進化解鎖
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              try {
-                                soundFx?.playHatch?.();
-                              } catch {}
-                              onSelectPet(currentPet);
-                              try {
-                                confetti({ particleCount: 80, spread: 80, origin: { y: 0.5 } });
-                              } catch {}
-                            }}
-                            className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 py-2 px-3 text-xs font-semibold text-slate-400 hover:text-slate-200 border border-slate-700/60 transition-all cursor-pointer"
-                          >
-                            <span>🧪 沙盒測試模式：強行體驗此形態</span>
-                          </button>
+                        <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-xs text-slate-400">
+                          <span className="flex items-center gap-2 text-amber-400 font-bold">
+                            <Lock className="h-4 w-4 shrink-0" /> 正統冒險模式鎖定中
+                          </span>
+                          <span className="text-[11px] text-slate-400">
+                            需從起源星蛋每日背單字培育進化解鎖
+                          </span>
                         </div>
                       )}
 
@@ -932,22 +913,6 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3 w-full sm:w-auto">
-                  {onUnlockAllSpecies && unlockedCount < BESTIARY_DATA.length && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        safeTap();
-                        onUnlockAllSpecies();
-                        try {
-                          confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
-                        } catch {}
-                      }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all cursor-pointer"
-                    >
-                      <Unlock className="h-3.5 w-3.5" />
-                      一鍵全部解鎖 (免等待)
-                    </button>
-                  )}
                   <div className="w-28 hidden sm:block">
                     <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
                       <div
