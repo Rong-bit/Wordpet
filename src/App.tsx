@@ -464,10 +464,12 @@ export default function App() {
                             setCustomQuizList(null);
                             setIsQuizActive(true);
                           }}
-                          className="flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 px-6 py-3.5 text-sm font-bold text-white transition-all shadow-lg shadow-indigo-600/30 active:scale-95"
+                          className="flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 px-6 py-3.5 text-sm font-bold text-white transition-all shadow-lg shadow-indigo-600/30 active:scale-95 cursor-pointer"
                         >
                           <Play className="h-4 w-4 fill-white" />
-                          開始智慧測驗 ({dueWords.length > 0 ? `${dueWords.length} 題` : '自由複習'})
+                          {pet.stage === 'egg'
+                            ? `🥚 開始測驗・破殼孵化 (${dueWords.length > 0 ? `${dueWords.length} 題` : '5 題'})`
+                            : `開始智慧測驗 (${dueWords.length > 0 ? `${dueWords.length} 題` : '自由複習'})`}
                         </button>
 
                         {weakWords.length > 0 && (
