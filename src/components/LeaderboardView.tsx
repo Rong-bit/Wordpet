@@ -86,26 +86,24 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Top Banner */}
-      <div className="rounded-3xl border border-slate-800 bg-gradient-to-r from-amber-950/40 via-slate-900 to-indigo-950/40 p-6 shadow-xl backdrop-blur-xl">
+      <div className="rounded-2xl sm:rounded-3xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
-              <Trophy className="h-4 w-4" /> 全球與好友排行榜
+            <div className="flex items-center gap-2 text-amber-400 text-xs font-semibold">
+              <Trophy className="h-4 w-4" /> 排行榜
             </div>
-            <h2 className="text-2xl font-bold font-fun text-white mt-1">
-              單字英豪競爭天梯
-            </h2>
-            <p className="text-xs text-slate-300 mt-1 max-w-xl">
-              每日按時複習累積連勝與詞彙掌握度，培育稀有神獸提升戰力！每週日結算前十名即可領取限定變異核心與神秘彩蛋！
+            <h2 className="text-2xl font-bold font-fun text-white mt-1">單字天梯</h2>
+            <p className="text-sm text-slate-400 mt-1 max-w-xl">
+              每天複習累積積分，每週日結算前十名可得限定獎勵。
             </p>
           </div>
 
           <button
             onClick={handleCopyChallenge}
-            className="flex items-center gap-2 rounded-2xl bg-amber-500 hover:bg-amber-400 px-5 py-3 text-xs font-bold text-slate-950 transition-colors shadow-lg shadow-amber-500/20 shrink-0"
+            className="flex items-center gap-2 rounded-xl border border-slate-700 hover:bg-slate-800 px-4 py-2.5 text-xs font-semibold text-slate-200 transition-colors shrink-0 cursor-pointer"
           >
             <Share2 className="h-4 w-4" />
-            {inviteCopied ? '已複製挑戰邀請連結！' : '發送戰帖邀請好友PK'}
+            {inviteCopied ? '已複製邀請！' : '邀請好友挑戰'}
           </button>
         </div>
       </div>
@@ -118,9 +116,9 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
           </div>
           <div>
             <p className="text-xs font-bold text-white flex items-center gap-1.5">
-              <span>{profile.name} (你的當前排名)</span>
-              <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] text-indigo-300 font-mono">
-                YOU
+              <span>{profile.name}</span>
+              <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] text-indigo-300">
+                你的排名
               </span>
             </p>
             <p className="text-[11px] text-slate-400">
@@ -131,7 +129,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
 
         <div className="flex items-center gap-4 text-right">
           <div>
-            <p className="text-[10px] text-slate-400">綜合冒險積分</p>
+            <p className="text-[10px] text-slate-400">積分</p>
             <p className="text-lg font-bold text-amber-400">{currentUserScore} PTS</p>
           </div>
         </div>
@@ -201,11 +199,11 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                      <span className="text-purple-300 font-medium">
-                        🐾 {user.petName} (Lv.{user.petLevel})
+                      <span>
+                        {user.petName} Lv.{user.petLevel}
                       </span>
                       <span>・</span>
-                      <span className="text-orange-300 flex items-center gap-0.5">
+                      <span className="flex items-center gap-0.5">
                         <Flame className="h-3 w-3 fill-orange-400" /> {user.streakDays}天
                       </span>
                     </div>

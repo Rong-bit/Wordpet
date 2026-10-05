@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Pet, Item, PetElement } from '../types';
+import { Pet, Item } from '../types';
 import { PetCanvas } from './PetCanvas';
+import { applyShinyPalette, evolveOneStage, getNextEvolution, HATCH_LEVEL } from '../utils/evolution';
+
+const SHINY_CORE_ID = 'item_mutation_core';
 import { soundFx } from '../utils/sound';
 import confetti from 'canvas-confetti';
 import { X, Dna, Sparkles, Zap, ArrowRight, CheckCircle2 } from 'lucide-react';
@@ -20,99 +23,47 @@ export const MutationModal: React.FC<MutationModalProps> = ({
   onClose,
   onMutateSuccess,
 }) => {
-  if (!isOpen) return null;
-
-  const [selectedStoneId, setSelectedStoneId] = useState<string>(
-    items.find(i => i.type === 'evolution_stone' && i.count > 0)?.id || ''
-  );
+  const [pickedStoneId, setSelectedStoneId] = useState<string>('');
   const [isMutating, setIsMutating] = useState(false);
   const [mutationResult, setMutationResult] = useState<Pet | null>(null);
 
+  if (!isOpen) return null;
+
   const evolutionStones = items.filter(i => i.type === 'evolution_stone' && i.count > 0);
+  const selectedStoneId = evolutionStones.some(s => s.id === pickedStoneId)
+    ? pickedStoneId
+    : evolutionStones[0]?.id || '';
+  const isShinyCore = selectedStoneId === SHINY_CORE_ID;
+  const nextEvolution = getNextEvolution(pet);
+  const preview = pet.stage === 'egg' ? null : evolveOneStage(pet);
+  const canUseStone = !!selectedStoneId && (pet.stage === 'egg' || !!preview || isShinyCore);
+  const nextLevelText =
+    pet.stage === 'egg'
+      ? `Lv.${HATCH_LEVEL} 自動孵化`
+      : nextEvolution
+      ? `Lv.${nextEvolution.level} 自動進化為「${nextEvolution.form.name}」`
+      : '已達最終型態';
 
   const handleStartMutation = () => {
-    if (!selectedStoneId) return;
+    if (!canUseStone) return;
 
     setIsMutating(true);
     soundFx.playMutation();
 
     setTimeout(() => {
-      // Generate new evolved / mutated pet with unique genes
-      const isGenesisEgg = pet.stage === 'egg';
-      let nextStage = pet.stage;
-      let nextRarity = pet.rarity;
-      let nextTitle = pet.title;
-      let newName = pet.name;
-      let newTrait = pet.specialTrait;
-      let speciesId = pet.speciesId;
-
-      const elements: PetElement[] = ['flame', 'frost', 'nature', 'thunder', 'void', 'radiant', 'cyber'];
-      const chosenElement = elements[Math.floor(Math.random() * elements.length)];
-
-      if (isGenesisEgg) {
-        nextStage = 'baby';
-        nextRarity = 'rare';
-        newName = chosenElement === 'flame' ? '熾焰火蜥' : chosenElement === 'frost' ? '霜晶小狐' : '翡翠森幼鹿';
-        nextTitle = '初階覺醒精靈';
-        speciesId = chosenElement === 'flame' ? 'p_fire_dragon_1' : chosenElement === 'frost' ? 'p_frost_fox_1' : 'p_nature_deer_1';
-        newTrait = '靈光一閃：每日首個測驗答對獲得雙倍經驗！';
-      } else if (pet.stage === 'baby') {
-        nextStage = 'juvenile';
-        nextRarity = 'epic';
-        newName = `疾風${pet.name}`;
-        nextTitle = '成長期迅捷獸';
-        newTrait = '思維共振：複習時長冷卻縮短 20%';
-      } else if (pet.stage === 'juvenile') {
-        nextStage = 'adult';
-        nextRarity = 'legendary';
-        newName = chosenElement === 'flame' ? '烈焰翼龍' : '奔雷電隼';
-        speciesId = chosenElement === 'flame' ? 'p_fire_dragon_2' : 'p_thunder_falcon_1';
-        nextTitle = '完全體神獸';
-        newTrait = '記憶壁壘：連續登入天數提供額外金幣加成 +30%';
-      } else {
-        // Ultimate Mutation!
-        nextStage = 'ultimate';
-        nextRarity = 'mythic';
-        newName = chosenElement === 'frost' ? '極光永凍九尾' : chosenElement === 'cyber' ? '量子神經機械龍' : '恆星日珥神龍';
-        speciesId = chosenElement === 'frost' ? 'p_frost_ultimate' : chosenElement === 'cyber' ? 'p_cyber_mecha_ultimate' : 'p_fire_ultimate';
-        nextTitle = '終極神話融合變異體';
-        newTrait = '終極神域：測驗全對觸發終極全屏光效，解鎖連勝絕對守護盾！';
-      }
-
-      const mutatedPet: Pet = {
-        ...pet,
-        name: newName,
-        speciesId,
-        title: nextTitle,
-        stage: nextStage,
-        rarity: nextRarity,
-        element: chosenElement,
-        level: Math.max(pet.level + 2, nextStage === 'ultimate' ? 20 : 5),
+      const evolved = evolveOneStage(pet) || pet;
+      const result: Pet = {
+        ...(isShinyCore ? applyShinyPalette(evolved) : evolved),
         health: 100,
         hunger: 100,
         mood: 'ecstatic',
-        specialTrait: newTrait,
-        genes: {
-          element: chosenElement,
-          pattern: nextStage === 'ultimate' ? 'galaxy' : 'aurora',
-          horns: nextStage === 'ultimate' ? 'dragon' : 'crystal',
-          wings: nextStage === 'ultimate' ? 'mecha' : 'dragon',
-          particle: chosenElement === 'frost' ? 'snowflakes' : chosenElement === 'flame' ? 'fire' : 'sparkles',
-          primaryColor: chosenElement === 'frost' ? '#38BDF8' : chosenElement === 'flame' ? '#EF4444' : chosenElement === 'nature' ? '#10B981' : '#8B5CF6',
-          secondaryColor: chosenElement === 'frost' ? '#818CF8' : chosenElement === 'flame' ? '#F97316' : chosenElement === 'nature' ? '#34D399' : '#C084FC',
-          glowColor: '#FDE047',
-        },
       };
 
-      setMutationResult(mutatedPet);
+      setMutationResult(result);
       setIsMutating(false);
       soundFx.playLevelUp();
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 },
-      });
-      onMutateSuccess(mutatedPet, selectedStoneId);
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+      onMutateSuccess(result, selectedStoneId);
     }, 2000);
   };
 
@@ -126,7 +77,7 @@ export const MutationModal: React.FC<MutationModalProps> = ({
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <Dna className="h-5 w-5 text-purple-400" />
-            <h3 className="text-xl font-bold font-fun text-white">神獸基因合成與變異殿堂</h3>
+            <h3 className="text-xl font-bold font-fun text-white">寵物進化與異色變異</h3>
           </div>
           <button
             onClick={onClose}
@@ -140,9 +91,11 @@ export const MutationModal: React.FC<MutationModalProps> = ({
         {!mutationResult ? (
           <div>
             <p className="text-xs text-slate-300 my-3 leading-relaxed">
-              透過複習單字獲取的【進化結晶】或【變異核心】，可引導寵物突破基因限制！
-              有極高機率覺醒為稀有、史詩與<span className="text-amber-400 font-bold">【終極神話型態】</span>，解鎖璀璨光環與全域加成！
+              寵物升級會沿著自己的進化路線<span className="text-amber-400 font-bold">自動進化</span>
+              （Lv.10 成長期、Lv.20 完全體、Lv.35 神話終極體）。
+              使用複習掉落的【進化結晶】可立即提前進化；【異色變異核心】還會額外變成稀有的異色毛色！
             </p>
+            <p className="text-[11px] text-indigo-300 mb-3">📈 不用道具：{nextLevelText}（目前 Lv.{pet.level}）</p>
 
             {/* Fusion Visual Chamber */}
             <div className="relative my-4 flex items-center justify-center rounded-2xl bg-slate-950/80 p-6 border border-purple-900/50">
@@ -170,12 +123,23 @@ export const MutationModal: React.FC<MutationModalProps> = ({
                   <ArrowRight className="h-6 w-6 text-purple-400 animate-pulse" />
 
                   <div className="text-center">
-                    <p className="text-[11px] text-purple-400 font-bold mb-1">目標變異</p>
-                    <div className="h-24 w-24 rounded-2xl border border-dashed border-purple-500/60 bg-purple-950/30 flex flex-col items-center justify-center">
-                      <Zap className="h-8 w-8 text-amber-400 animate-bounce" />
-                      <span className="text-[10px] text-purple-300 font-semibold mt-1">未知新神獸</span>
-                    </div>
-                    <p className="text-xs text-purple-300 mt-1 font-semibold">隨機稀有/神話</p>
+                    <p className="text-[11px] text-purple-400 font-bold mb-1">
+                      {preview ? '進化目標' : isShinyCore && pet.stage === 'ultimate' ? '異色變異' : '孵化結果'}
+                    </p>
+                    {preview ? (
+                      <PetCanvas pet={preview} size="sm" interactive={false} showStatusAura={false} />
+                    ) : (
+                      <div className="h-24 w-24 rounded-2xl border border-dashed border-purple-500/60 bg-purple-950/30 flex flex-col items-center justify-center">
+                        <Zap className="h-8 w-8 text-amber-400 animate-bounce" />
+                        <span className="text-[10px] text-purple-300 font-semibold mt-1">
+                          {pet.stage === 'egg' ? '隨機寵物' : '全新毛色'}
+                        </span>
+                      </div>
+                    )}
+                    <p className="text-xs text-purple-300 mt-1 font-semibold">
+                      {preview ? preview.name : pet.stage === 'egg' ? '11 種之一' : '已是最終型態'}
+                      {isShinyCore ? '・異色' : ''}
+                    </p>
                   </div>
                 </div>
               )}
@@ -189,7 +153,7 @@ export const MutationModal: React.FC<MutationModalProps> = ({
               {evolutionStones.length === 0 ? (
                 <div className="rounded-xl bg-slate-800/60 border border-slate-700/60 p-3 text-center">
                   <p className="text-xs text-slate-400">目前背包尚無進化石！</p>
-                  <p className="text-[11px] text-indigo-400 mt-1">完成每日任務或累積複習可免費獲得！</p>
+                  <p className="text-[11px] text-indigo-400 mt-1">每次複習 5 題以上有機率掉落，每日任務「易錯單字狙擊」必得 1 顆！</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -222,15 +186,23 @@ export const MutationModal: React.FC<MutationModalProps> = ({
             {/* Action trigger button */}
             <button
               onClick={handleStartMutation}
-              disabled={isMutating || !selectedStoneId}
+              disabled={isMutating || !canUseStone}
               className={`w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold shadow-lg transition-all ${
-                isMutating || !selectedStoneId
+                isMutating || !canUseStone
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
                   : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-600/30 active:scale-98'
               }`}
             >
               <Sparkles className="h-4 w-4" />
-              {isMutating ? '變異能量注入中...' : '注入能量・啟動突變融合'}
+              {isMutating
+                ? '進化能量注入中...'
+                : pet.stage === 'egg' || preview
+                ? isShinyCore
+                  ? '注入核心・立即進化＋異色'
+                  : '使用結晶・立即進化'
+                : isShinyCore
+                ? '注入核心・異色變異'
+                : '已達最終型態（可改用異色核心）'}
             </button>
           </div>
         ) : (

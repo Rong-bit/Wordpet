@@ -2,6 +2,7 @@ import { Word, Pet, Item, DailyQuest, Achievement, UserProfile } from '../types'
 import { INITIAL_WORDS } from '../data/initialWords';
 import { INITIAL_PET, INITIAL_ITEMS } from '../data/bestiary';
 import { INITIAL_DAILY_QUESTS, INITIAL_ACHIEVEMENTS } from '../data/socialAndQuests';
+import { expForLevel } from './evolution';
 
 const STORAGE_KEYS = {
   WORDS: 'wordpet_words_v1',
@@ -11,6 +12,7 @@ const STORAGE_KEYS = {
   ACHIEVEMENTS: 'wordpet_achievements_v1',
   PROFILE: 'wordpet_user_profile_v1',
   UNLOCKED_SPECIES: 'wordpet_unlocked_species_v1',
+  QUEST_DAY: 'wordpet_daily_quests_day_v1',
 };
 
 export interface AppState {
@@ -71,13 +73,30 @@ export function loadAppState(): AppState {
     }
 
     const sPet = localStorage.getItem(STORAGE_KEYS.PET);
-    if (sPet) pet = JSON.parse(sPet);
+    if (sPet) {
+      const parsedPet: Pet = JSON.parse(sPet);
+      const maxExp = expForLevel(parsedPet.level || 1);
+      pet = { ...parsedPet, maxExp, exp: Math.min(parsedPet.exp || 0, maxExp - 1) };
+    }
 
     const sItems = localStorage.getItem(STORAGE_KEYS.ITEMS);
-    if (sItems) items = JSON.parse(sItems);
+    if (sItems) {
+      const parsedItems: Item[] = JSON.parse(sItems);
+      items = parsedItems.map(i => {
+        const def = INITIAL_ITEMS.find(d => d.id === i.id);
+        return def ? { ...def, count: i.count } : i;
+      });
+    }
 
+    const today = new Date().toISOString().split('T')[0];
     const sQuests = localStorage.getItem(STORAGE_KEYS.QUESTS);
-    if (sQuests) quests = JSON.parse(sQuests);
+    const lastQuestDay = localStorage.getItem(STORAGE_KEYS.QUEST_DAY);
+    if (sQuests && lastQuestDay === today) {
+      quests = JSON.parse(sQuests);
+    } else {
+      quests = INITIAL_DAILY_QUESTS.map(q => ({ ...q }));
+      localStorage.setItem(STORAGE_KEYS.QUEST_DAY, today);
+    }
 
     const sAchievements = localStorage.getItem(STORAGE_KEYS.ACHIEVEMENTS);
     if (sAchievements) achievements = JSON.parse(sAchievements);

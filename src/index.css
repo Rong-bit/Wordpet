@@ -56,6 +56,60 @@ html.font-size-huge {
   animation: pulse-glow 2.5s ease-in-out infinite;
 }
 
+/* Pet micro-animations (SVG groups) */
+@keyframes pet-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+
+@keyframes pet-breathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.025, 0.975); }
+}
+
+@keyframes pet-squish {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.06, 0.93); }
+}
+
+@keyframes pet-wag {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(9deg); }
+}
+
+@keyframes pet-ear {
+  0%, 85%, 100% { transform: rotate(0deg); }
+  90% { transform: rotate(-10deg); }
+}
+
+@keyframes pet-flap {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-25deg); }
+}
+
+@keyframes pet-flap-r {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(25deg); }
+}
+
+.pet-blink,
+.pet-breathe,
+.pet-squish,
+.pet-wag,
+.pet-ear,
+.pet-flap,
+.pet-flap-r {
+  transform-box: fill-box;
+}
+
+.pet-blink { animation: pet-blink 4.5s infinite; transform-origin: center; }
+.pet-breathe { animation: pet-breathe 3s ease-in-out infinite; transform-origin: center bottom; }
+.pet-squish { animation: pet-squish 2.2s ease-in-out infinite; transform-origin: center bottom; }
+.pet-wag { animation: pet-wag 1.8s ease-in-out infinite; transform-origin: left bottom; }
+.pet-ear { animation: pet-ear 3.5s ease-in-out infinite; transform-origin: center bottom; }
+.pet-flap { animation: pet-flap 0.5s ease-in-out infinite; transform-origin: right top; }
+.pet-flap-r { animation: pet-flap-r 0.5s ease-in-out infinite; transform-origin: left top; }
+
 /* Custom sleek scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

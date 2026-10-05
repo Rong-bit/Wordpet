@@ -102,23 +102,18 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
       speakEnglish(currentWord.word, voiceGender, voiceSpeed);
     }
 
-    if (direction === 'en_to_zh' || direction === 'listening') {
-      // Correct is Chinese meaning
-      const correctAns = currentWord.meaning;
-      const otherWords = allWords.filter(w => w.id !== currentWord.id);
-      const shuffledOthers = [...otherWords].sort(() => Math.random() - 0.5);
-      const wrongOptions = shuffledOthers.slice(0, 3).map(w => w.meaning);
-      const combined = [correctAns, ...wrongOptions].sort(() => Math.random() - 0.5);
-      setOptions(combined);
-    } else {
-      // Direction: zh_to_en -> Correct is English word
-      const correctAns = currentWord.word;
-      const otherWords = allWords.filter(w => w.id !== currentWord.id);
-      const shuffledOthers = [...otherWords].sort(() => Math.random() - 0.5);
-      const wrongOptions = shuffledOthers.slice(0, 3).map(w => w.word);
-      const combined = [correctAns, ...wrongOptions].sort(() => Math.random() - 0.5);
-      setOptions(combined);
+    const pick = (w: Word) => (direction === 'zh_to_en' ? w.word : w.meaning);
+    const correctAns = pick(currentWord);
+    const sameCategory = allWords.filter(w => w.category === currentWord.category);
+    const pool = sameCategory.length >= 8 ? sameCategory : allWords;
+    const wrongOptions = new Set<string>();
+    for (let tries = 0; tries < 60 && wrongOptions.size < 3 && pool.length > 1; tries++) {
+      const candidate = pool[Math.floor(Math.random() * pool.length)];
+      if (candidate.id === currentWord.id || candidate.word.toLowerCase() === currentWord.word.toLowerCase()) continue;
+      const text = pick(candidate);
+      if (text && text.trim() !== correctAns.trim()) wrongOptions.add(text);
     }
+    setOptions([correctAns, ...wrongOptions].sort(() => Math.random() - 0.5));
   }, [currentIndex, testWords, direction, allWords, voiceGender, voiceSpeed]);
 
   if (!currentWord && !quizFinished) {

@@ -44,22 +44,19 @@ export const StatsView: React.FC<StatsViewProps> = ({ words, profile }) => {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Top Banner Overview */}
-      <div className="rounded-3xl border border-slate-800 bg-gradient-to-r from-indigo-950/60 via-slate-900 to-purple-950/50 p-6 shadow-xl backdrop-blur-xl">
+      <div className="rounded-2xl sm:rounded-3xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
-              <Brain className="h-4 w-4" /> 智慧間隔重複 (SRS) 學習大腦
+            <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold">
+              <Brain className="h-4 w-4" /> 學習分析
             </div>
-            <h2 className="text-2xl font-bold font-fun text-white mt-1">
-              艾賓豪斯記憶曲線與學習分析
-            </h2>
-            <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
-              根據德國心理學家艾賓豪斯 (Hermann Ebbinghaus) 研究，人類大腦在背誦 20 分鐘後即遺忘 42% 的資訊。
-              WordPet 透過間隔重複算法精準在遺忘臨界點提醒你複習，將短期記憶永久鞏固為長期記憶！
+            <h2 className="text-2xl font-bold font-fun text-white mt-1">記憶曲線</h2>
+            <p className="text-sm text-slate-400 mt-1 max-w-xl">
+              系統會在你快忘記時安排複習，把短期記憶變成長期記憶。
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0 rounded-2xl bg-slate-900/80 p-3.5 border border-slate-800">
+          <div className="flex items-center gap-3 shrink-0 rounded-2xl bg-slate-950/50 p-3.5 border border-slate-800">
             <div className="text-center">
               <p className="text-[10px] text-slate-400">目前記憶留存率</p>
               <p className="text-2xl font-bold text-emerald-400">{avgRetention}%</p>
@@ -84,7 +81,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ words, profile }) => {
             <Clock className="h-4 w-4 text-indigo-400" />
           </div>
           <p className="text-2xl font-bold text-white">{dueCount}</p>
-          <p className="text-[11px] text-indigo-300 mt-1">已達最佳複習時機</p>
+          <p className="text-[11px] text-slate-500 mt-1">現在複習效果最好</p>
         </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
@@ -93,7 +90,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ words, profile }) => {
             <CheckCircle className="h-4 w-4 text-emerald-400" />
           </div>
           <p className="text-2xl font-bold text-emerald-400">{masteredCount}</p>
-          <p className="text-[11px] text-slate-400 mt-1">進入永久長期記憶區</p>
+          <p className="text-[11px] text-slate-500 mt-1">已進入長期記憶</p>
         </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
@@ -102,7 +99,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ words, profile }) => {
             <TrendingUp className="h-4 w-4 text-blue-400" />
           </div>
           <p className="text-2xl font-bold text-blue-400">{reviewingCount + learningCount}</p>
-          <p className="text-[11px] text-slate-400 mt-1">記憶神經突觸強化中</p>
+          <p className="text-[11px] text-slate-500 mt-1">還需要幾次複習</p>
         </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
@@ -111,7 +108,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ words, profile }) => {
             <AlertCircle className="h-4 w-4 text-rose-400" />
           </div>
           <p className="text-2xl font-bold text-rose-400">{weakCount}</p>
-          <p className="text-[11px] text-rose-300 mt-1">可點擊特訓按鈕攻克</p>
+          <p className="text-[11px] text-slate-500 mt-1">可在主頁弱點特訓</p>
         </div>
       </div>
 
@@ -121,21 +118,19 @@ export const StatsView: React.FC<StatsViewProps> = ({ words, profile }) => {
           <div>
             <h3 className="text-lg font-bold font-fun text-white flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-indigo-400" />
-              艾賓豪斯記憶保持曲線可視化對比
+              記憶保持曲線
             </h3>
-            <p className="text-xs text-slate-400">
-              對照【未複習自然遺忘曲線】與【使用 WordPet 間隔重複系統】之大腦留存率
-            </p>
+            <p className="text-xs text-slate-400">不複習 vs. 間隔複習的記憶留存率</p>
           </div>
 
           <div className="flex items-center gap-4 text-xs">
             <div className="flex items-center gap-1.5">
               <span className="h-3 w-3 rounded-full bg-rose-500/80" />
-              <span className="text-slate-300">自然快速遺忘 (無複習)</span>
+              <span className="text-slate-300">不複習</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-3 w-3 rounded-full bg-emerald-400" />
-              <span className="text-slate-200 font-semibold">WordPet 間隔重複鞏固</span>
+              <span className="text-slate-200 font-semibold">間隔複習</span>
             </div>
           </div>
         </div>
@@ -224,7 +219,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ words, profile }) => {
         </div>
 
         <div className="mt-4 rounded-2xl bg-slate-950/70 p-4 border border-slate-800 text-xs text-slate-300 leading-relaxed">
-          <p className="font-semibold text-white mb-1">💡 系統安排原則：</p>
+          <p className="font-semibold text-white mb-1">複習排程</p>
           <ul className="list-disc pl-4 space-y-1 text-slate-400">
             <li>第 1 次複習：背完後隔天 (維持留存率在 90% 以上)</li>
             <li>第 2 次複習：第 3 天 (克服第二波遺忘峰值)</li>
@@ -237,7 +232,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ words, profile }) => {
       {/* Vocabulary Mastery Distribution */}
       <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl backdrop-blur-xl">
         <h3 className="text-lg font-bold font-fun text-white mb-4">
-          單字掌握度漏斗分佈
+          掌握度分佈
         </h3>
 
         <div className="space-y-3">

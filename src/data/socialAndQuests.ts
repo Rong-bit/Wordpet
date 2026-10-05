@@ -31,7 +31,7 @@ export const INITIAL_DAILY_QUESTS: DailyQuest[] = [
     current: 0,
     rewardType: 'item',
     rewardAmount: 1,
-    rewardItemId: 'item_cookie',
+    rewardItemId: 'item_stone_fire',
     isCompleted: false,
     isClaimed: false,
   },

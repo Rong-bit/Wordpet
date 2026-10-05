@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Word, Pet, Item, DailyQuest, Achievement, UserProfile } from './types';
 import { loadAppState, saveAppState, AppState } from './utils/storage';
-import { INITIAL_PET } from './data/bestiary';
+import { loadAllWordBanks } from './utils/wordBank';
+import { INITIAL_PET, INITIAL_ITEMS } from './data/bestiary';
+import { applyExpGain, ExpGainResult } from './utils/evolution';
+import { EvolutionCelebrationModal } from './components/EvolutionCelebrationModal';
 import { soundFx } from './utils/sound';
 import confetti from 'canvas-confetti';
 import { Navbar } from './components/Navbar';
@@ -78,20 +81,56 @@ export default function App() {
     }
   }, [profile.fontSizeMode]);
 
-  // Calculate due words & weak words
+  // Built-in word banks (國中 2000 / 高中 6000 / 托福 / 生活) are loaded lazily and only
+  // enter `words` (and localStorage) once the learner actually studies or edits them.
+  const [bankWords, setBankWords] = useState<Word[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    loadAllWordBanks().then(list => {
+      if (!cancelled) setBankWords(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const progressIds = useMemo(() => new Set(words.map(w => w.id)), [words]);
+
+  const allWords = useMemo(() => {
+    const learnedKeys = new Set(words.map(w => `${w.category}|${w.word.toLowerCase()}`));
+    const fresh = bankWords.filter(
+      b => !progressIds.has(b.id) && !learnedKeys.has(`${b.category}|${b.word.toLowerCase()}`)
+    );
+    return [...words, ...fresh];
+  }, [words, bankWords, progressIds]);
+
+  const allWordsRef = useRef(allWords);
+  allWordsRef.current = allWords;
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    allWords.forEach(w => {
+      counts[w.category] = (counts[w.category] || 0) + 1;
+    });
+    return counts;
+  }, [allWords]);
+
+  // Calculate due words & weak words (only words already in the learner's progress)
   const now = new Date().getTime();
   const dueWords = words.filter(w => new Date(w.nextReviewAt).getTime() <= now);
   const weakWords = words.filter(w => w.isWeak);
   const masteredWords = words.filter(w => w.status === 'mastered');
 
   // Current category words on Home page
-  const homeCategoryWords = homeQuizCategory === 'all'
-    ? words
-    : words.filter(w => w.category === homeQuizCategory);
+  const homeCategoryWords = useMemo(
+    () => (homeQuizCategory === 'all' ? allWords : allWords.filter(w => w.category === homeQuizCategory)),
+    [allWords, homeQuizCategory]
+  );
 
   const homeCategoryDueWords = homeCategoryWords.filter(
-    w => new Date(w.nextReviewAt).getTime() <= now
+    w => progressIds.has(w.id) && new Date(w.nextReviewAt).getTime() <= now
   );
+  const homeCategoryNewCount = homeCategoryWords.length - homeCategoryWords.filter(w => progressIds.has(w.id)).length;
 
   // User selected batch size: 10, 20, 25, 30, or 0 (all), defaults to 20
   const currentBatchSize = profile.quizBatchSize ?? 20;
@@ -103,7 +142,7 @@ export default function App() {
     limit: number
   ): Word[] => {
     if (limit <= 0) {
-      return duePool.length > 0 ? duePool : pool;
+      return duePool.length > 0 ? duePool : pool.slice(0, 50);
     }
 
     // 1. Sort due words by most overdue first
@@ -129,32 +168,76 @@ export default function App() {
     return [...sortedDue, ...extraCandidates.slice(0, needed)];
   };
 
-  const currentQuizList = buildSmartQuizBatch(
-    homeCategoryWords,
-    homeCategoryDueWords,
-    currentBatchSize
+  const homeDueKey = homeCategoryDueWords.map(w => w.id).join(',');
+  const currentQuizList = useMemo(
+    () => buildSmartQuizBatch(homeCategoryWords, homeCategoryDueWords, currentBatchSize),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [homeCategoryWords, homeDueKey, currentBatchSize]
   );
 
   const BATCH_SIZE_OPTIONS = [
-    { value: 10, label: '10 題 (極速)' },
-    { value: 20, label: '⚡ 20 題 (推薦)' },
-    { value: 25, label: '25 題' },
-    { value: 30, label: '30 題 (衝刺)' },
-    { value: 0, label: '全部單字' },
+    { value: 10, label: '10' },
+    { value: 20, label: '20' },
+    { value: 25, label: '25' },
+    { value: 30, label: '30' },
+    { value: 0, label: '全部' },
   ];
 
   const HOME_QUIZ_CATEGORIES = [
-    { id: 'all', label: '全部單字 (SRS)', shortLabel: '全部單字' },
-    { id: 'junior', label: '🎒 國中必背', shortLabel: '國中必背' },
-    { id: 'highschool', label: '🏫 高中 7000', shortLabel: '高中 7000' },
-    { id: 'toeic', label: '💼 多益 TOEIC', shortLabel: '多益' },
-    { id: 'toefl', label: '🎓 托福 TOEFL', shortLabel: '托福' },
-    { id: 'business', label: '🏢 商務職場', shortLabel: '商務' },
-    { id: 'daily', label: '☕ 常用生活', shortLabel: '生活' },
-    { id: 'custom', label: '⭐️ 自訂單字', shortLabel: '自訂' },
+    { id: 'all', label: '全部', shortLabel: '全部單字' },
+    { id: 'junior', label: '國中', shortLabel: '國中必背' },
+    { id: 'highschool', label: '高中', shortLabel: '高中 7000' },
+    { id: 'toeic', label: '多益', shortLabel: '多益' },
+    { id: 'toefl', label: '托福', shortLabel: '托福' },
+    { id: 'business', label: '商務', shortLabel: '商務' },
+    { id: 'daily', label: '生活', shortLabel: '生活' },
+    { id: 'custom', label: '自訂', shortLabel: '自訂' },
   ];
 
   const selectedCategoryObj = HOME_QUIZ_CATEGORIES.find(c => c.id === homeQuizCategory) || HOME_QUIZ_CATEGORIES[0];
+
+  // --- GROWTH HELPERS ---
+  const [celebration, setCelebration] = useState<{ pet: Pet; hatched: boolean } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(current => (current === msg ? null : current)), 4500);
+  };
+
+  const announceGrowth = (growth: ExpGainResult) => {
+    if (growth.levelsGained > 0) soundFx.playLevelUp();
+    if (growth.hatched || growth.evolvedStages.length > 0) {
+      if (growth.hatched) soundFx.playHatch();
+      else soundFx.playMutation();
+      confetti({ particleCount: 160, spread: 100, origin: { y: 0.5 } });
+      setCelebration({ pet: growth.pet, hatched: growth.hatched && growth.evolvedStages.length === 0 });
+    }
+  };
+
+  const mergeSpecies = (list: string[], add: string[]) => Array.from(new Set([...list, ...add]));
+
+  const addItem = (list: Item[], itemId: string, amount: number, template?: Item): Item[] => {
+    if (list.some(i => i.id === itemId)) {
+      return list.map(i => (i.id === itemId ? { ...i, count: i.count + amount } : i));
+    }
+    const base = template || INITIAL_ITEMS.find(i => i.id === itemId);
+    return base ? [...list, { ...base, count: amount }] : list;
+  };
+
+  const withEvolutionAchievements = (list: Achievement[], p: Pet): Achievement[] =>
+    list.map(a => {
+      if (a.id === 'ach_egg_hatch' && p.stage !== 'egg' && !a.unlocked) {
+        return { ...a, unlocked: true, progress: 1 };
+      }
+      if (a.id === 'ach_evolution_adult' && (p.stage === 'adult' || p.stage === 'ultimate') && !a.unlocked) {
+        return { ...a, unlocked: true, progress: 1 };
+      }
+      if (a.id === 'ach_mutation_ultimate' && p.stage === 'ultimate' && !a.unlocked) {
+        return { ...a, unlocked: true, progress: 1 };
+      }
+      return a;
+    });
 
   // --- ACTIONS ---
 
@@ -170,49 +253,17 @@ export default function App() {
     updatedWords.forEach(w => wordsMap.set(w.id, w));
     const newWordsList = Array.from(wordsMap.values());
 
-    // 2. Pet Level & EXP calculation + Hatching logic!
-    let nextExp = pet.exp + gainedExp;
-    let nextLevel = pet.level;
-    let nextMaxExp = pet.maxExp;
-    let nextStage = pet.stage;
-    let nextSpeciesId = pet.speciesId;
-    let nextName = pet.name;
-    let nextTitle = pet.title;
+    // 2. EXP, level-ups, hatching and level-gated evolution
+    const growth = applyExpGain(pet, gainedExp);
+    announceGrowth(growth);
+    const nextStage = growth.pet.stage;
+    const newlyUnlockedSpecies = mergeSpecies(unlockedSpecies, growth.unlockedSpecies);
 
-    while (nextExp >= nextMaxExp) {
-      nextExp -= nextMaxExp;
-      nextLevel += 1;
-      nextMaxExp = Math.round(nextMaxExp * 1.3);
-      soundFx.playLevelUp();
-    }
-
-    // Auto egg hatching check when pet reaches Lv.2+
-    let newlyUnlockedSpecies = [...unlockedSpecies];
-    if (pet.stage === 'egg' && nextLevel >= 2) {
-      nextStage = 'baby';
-      nextSpeciesId = 'p_fire_dragon_1';
-      nextName = '熾焰火蜥幼體';
-      nextTitle = '破殼晨光幼龍';
-      soundFx.playHatch();
-      confetti({ particleCount: 150, spread: 90, origin: { y: 0.5 } });
-      if (!newlyUnlockedSpecies.includes('p_fire_dragon_1')) {
-        newlyUnlockedSpecies.push('p_fire_dragon_1');
-      }
-    }
-
-    // Restore pet health and hunger on completing review
     const updatedPet: Pet = {
-      ...pet,
-      level: nextLevel,
-      exp: nextExp,
-      maxExp: nextMaxExp,
-      stage: nextStage,
-      speciesId: nextSpeciesId,
-      name: nextName,
-      title: nextTitle,
+      ...growth.pet,
       hunger: Math.min(100, pet.hunger + 35),
       health: 100,
-      mood: 'happy',
+      mood: growth.evolvedStages.length > 0 ? 'ecstatic' : 'happy',
       daysUnreviewed: 0,
       lastActiveAt: new Date().toISOString(),
       wordsLearnedCount: pet.wordsLearnedCount + updatedWords.length,
@@ -260,14 +311,23 @@ export default function App() {
     });
 
     // 6. If reward items given
-    let updatedItems = [...items];
+    let updatedItems = items.map(i => ({ ...i }));
     if (rewardItem) {
-      const match = updatedItems.find(i => i.id === rewardItem.id);
-      if (match) {
-        match.count += 1;
-      } else {
-        updatedItems.push(rewardItem);
-      }
+      updatedItems = addItem(updatedItems, rewardItem.id, 1, rewardItem);
+    }
+
+    // 7. Random evolution stone drops for finishing a solid review session
+    const drops: string[] = [];
+    if (updatedWords.length >= 5) {
+      if (Math.random() < 0.3) drops.push('item_stone_fire');
+      if (Math.random() < 0.06) drops.push('item_mutation_core');
+    }
+    drops.forEach(id => {
+      updatedItems = addItem(updatedItems, id, 1);
+    });
+    if (drops.length > 0) {
+      const names = drops.map(id => INITIAL_ITEMS.find(i => i.id === id)?.name || id).join('、');
+      showToast(`🎁 複習獎勵掉落：${names}！可到「進化與異色」提前進化`);
     }
 
     setAppState({
@@ -275,7 +335,7 @@ export default function App() {
       pet: updatedPet,
       items: updatedItems,
       quests: updatedQuests,
-      achievements: updatedAch,
+      achievements: withEvolutionAchievements(updatedAch, updatedPet),
       profile: updatedProfile,
       unlockedSpecies: newlyUnlockedSpecies,
     });
@@ -294,12 +354,13 @@ export default function App() {
     clearedWords.forEach(w => wordsMap.set(w.id, w));
     const newWordsList = Array.from(wordsMap.values());
 
+    const growth = applyExpGain(pet, gainedExp);
+    announceGrowth(growth);
     const updatedPet: Pet = {
-      ...pet,
-      exp: pet.exp + gainedExp,
+      ...growth.pet,
       hunger: Math.min(100, pet.hunger + 25),
       health: 100,
-      mood: 'happy',
+      mood: growth.evolvedStages.length > 0 ? 'ecstatic' : 'happy',
       daysUnreviewed: 0,
     };
 
@@ -316,6 +377,8 @@ export default function App() {
       words: newWordsList,
       pet: updatedPet,
       quests: updatedQuests,
+      unlockedSpecies: mergeSpecies(prev.unlockedSpecies, growth.unlockedSpecies),
+      achievements: withEvolutionAchievements(prev.achievements, updatedPet),
       profile: {
         ...prev.profile,
         coins: prev.profile.coins + gainedCoins,
@@ -339,23 +402,12 @@ export default function App() {
     const healthBoost = item.effect.health || 0;
     const expBoost = item.effect.exp || 0;
 
-    let nextExp = pet.exp + expBoost;
-    let nextLevel = pet.level;
-    let nextMaxExp = pet.maxExp;
-    while (nextExp >= nextMaxExp) {
-      nextExp -= nextMaxExp;
-      nextLevel += 1;
-      nextMaxExp = Math.round(nextMaxExp * 1.3);
-      soundFx.playLevelUp();
-    }
-
+    const growth = applyExpGain(pet, expBoost);
+    announceGrowth(growth);
     const updatedPet: Pet = {
-      ...pet,
+      ...growth.pet,
       hunger: Math.min(100, pet.hunger + hungerBoost),
       health: Math.min(100, pet.health + healthBoost),
-      exp: nextExp,
-      level: nextLevel,
-      maxExp: nextMaxExp,
       mood: 'ecstatic',
     };
 
@@ -372,6 +424,8 @@ export default function App() {
       items: updatedItems,
       pet: updatedPet,
       quests: updatedQuests,
+      unlockedSpecies: mergeSpecies(prev.unlockedSpecies, growth.unlockedSpecies),
+      achievements: withEvolutionAchievements(prev.achievements, updatedPet),
     }));
   };
 
@@ -381,28 +435,12 @@ export default function App() {
       i.id === consumedItemId ? { ...i, count: Math.max(0, i.count - 1) } : i
     );
 
-    const newUnlocked = [...unlockedSpecies];
-    if (!newUnlocked.includes(mutatedPet.speciesId)) {
-      newUnlocked.push(mutatedPet.speciesId);
-    }
-
-    // Check achievement for mutation
-    const updatedAch = achievements.map(a => {
-      if (a.id === 'ach_mutation_ultimate' && mutatedPet.stage === 'ultimate') {
-        return { ...a, unlocked: true, progress: 1 };
-      }
-      if (a.id === 'ach_evolution_adult' && (mutatedPet.stage === 'adult' || mutatedPet.stage === 'ultimate')) {
-        return { ...a, unlocked: true, progress: 1 };
-      }
-      return a;
-    });
-
     setAppState(prev => ({
       ...prev,
       pet: mutatedPet,
       items: updatedItems,
-      unlockedSpecies: newUnlocked,
-      achievements: updatedAch,
+      unlockedSpecies: mergeSpecies(prev.unlockedSpecies, [mutatedPet.speciesId]),
+      achievements: withEvolutionAchievements(prev.achievements, mutatedPet),
     }));
   };
 
@@ -433,10 +471,25 @@ export default function App() {
   };
 
   // Update Existing Word (修改單字內容)
+  const upsertWord = (list: Word[], wordId: string, update: (w: Word) => Word): Word[] => {
+    if (list.some(w => w.id === wordId)) {
+      return list.map(w => (w.id === wordId ? update(w) : w));
+    }
+    const fromBank = allWordsRef.current.find(w => w.id === wordId);
+    return fromBank ? [...list, update(fromBank)] : list;
+  };
+
   const handleUpdateWord = (updatedWord: Word) => {
     setAppState(prev => ({
       ...prev,
-      words: prev.words.map(w => (w.id === updatedWord.id ? updatedWord : w)),
+      words: upsertWord(prev.words, updatedWord.id, () => updatedWord),
+    }));
+  };
+
+  const handlePatchWord = (wordId: string, patch: Partial<Word>) => {
+    setAppState(prev => ({
+      ...prev,
+      words: upsertWord(prev.words, wordId, w => ({ ...w, ...patch })),
     }));
   };
 
@@ -452,15 +505,13 @@ export default function App() {
   const handleToggleWeak = (wordId: string) => {
     setAppState(prev => ({
       ...prev,
-      words: prev.words.map(w =>
-        w.id === wordId ? { ...w, isWeak: !w.isWeak } : w
-      ),
+      words: upsertWord(prev.words, wordId, w => ({ ...w, isWeak: !w.isWeak })),
     }));
   };
 
   // Start specific quiz from library
   const handleStartSpecificQuiz = (selectedList: Word[]) => {
-    setCustomQuizList(selectedList);
+    setCustomQuizList(selectedList.slice(0, currentBatchSize > 0 ? currentBatchSize : 50));
     setIsQuizActive(true);
   };
 
@@ -470,17 +521,19 @@ export default function App() {
     if (!targetQuest || targetQuest.isClaimed || !targetQuest.isCompleted) return;
 
     let nextCoins = profile.coins;
-    let nextPetExp = pet.exp;
+    let nextPet = pet;
+    let newSpecies: string[] = [];
     let updatedItems = [...items];
 
     if (targetQuest.rewardType === 'coins') {
       nextCoins += targetQuest.rewardAmount;
     } else if (targetQuest.rewardType === 'exp') {
-      nextPetExp += targetQuest.rewardAmount;
+      const growth = applyExpGain(pet, targetQuest.rewardAmount);
+      announceGrowth(growth);
+      nextPet = growth.pet;
+      newSpecies = growth.unlockedSpecies;
     } else if (targetQuest.rewardType === 'item' && targetQuest.rewardItemId) {
-      updatedItems = updatedItems.map(i =>
-        i.id === targetQuest.rewardItemId ? { ...i, count: i.count + targetQuest.rewardAmount } : i
-      );
+      updatedItems = addItem(updatedItems, targetQuest.rewardItemId, targetQuest.rewardAmount);
     }
 
     setAppState(prev => ({
@@ -489,8 +542,10 @@ export default function App() {
         q.id === questId ? { ...q, isClaimed: true } : q
       ),
       profile: { ...prev.profile, coins: nextCoins },
-      pet: { ...prev.pet, exp: nextPetExp },
+      pet: nextPet,
       items: updatedItems,
+      unlockedSpecies: mergeSpecies(prev.unlockedSpecies, newSpecies),
+      achievements: withEvolutionAchievements(prev.achievements, nextPet),
     }));
   };
 
@@ -518,7 +573,7 @@ export default function App() {
             {isQuizActive ? (
               <QuizSection
                 dueWords={customQuizList || dueWords}
-                allWords={words}
+                allWords={allWords}
                 pet={pet}
                 onFinishQuiz={handleFinishQuiz}
                 onClose={() => {
@@ -559,63 +614,60 @@ export default function App() {
                 {/* Right Column: Spaced Repetition Review Mission Center (7 cols) */}
                 <div className="lg:col-span-7 space-y-5">
                   {/* Hero Review Start Card */}
-                  <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-800 bg-gradient-to-br from-indigo-950/60 via-slate-900/90 to-purple-950/60 p-4 sm:p-7 shadow-2xl backdrop-blur-xl">
-                    <div className="relative z-10">
-                      <div className="inline-flex items-center gap-2 rounded-full bg-indigo-500/20 px-3 py-1 text-xs font-bold text-indigo-300 border border-indigo-500/30 mb-3">
-                        <Zap className="h-3.5 w-3.5 text-amber-400" />
-                        艾賓豪斯智慧間隔複習 (SRS)
-                      </div>
+                  <div className="rounded-2xl sm:rounded-3xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6 shadow-xl">
+                    <div>
+                      <p className="text-xs font-semibold text-indigo-300">今日複習</p>
 
-                      <h2 className="text-2xl sm:text-3xl font-bold font-fun text-white tracking-wide">
+                      <h2 className="mt-1 text-xl sm:text-2xl font-bold font-fun text-white tracking-wide">
                         {homeQuizCategory === 'all'
                           ? (dueWords.length > 0
-                              ? `今日有 ${dueWords.length} 個單字已達最佳複習時機！`
-                              : '太棒了！今日待複習單字已全部清空！')
-                          : `【${selectedCategoryObj.label}】題庫 (${homeCategoryWords.length} 個單字)`}
+                              ? `有 ${dueWords.length} 個單字該複習了`
+                              : '今日複習已完成')
+                          : `${selectedCategoryObj.shortLabel}・${homeCategoryWords.length} 字`}
                       </h2>
 
-                      <p className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl">
+                      <p className="mt-1.5 text-sm text-slate-400">
                         {pet.stage === 'egg'
-                          ? `你的【星紋起源蛋】正在汲取「${selectedCategoryObj.shortLabel}」知識養分！每次完成測驗裂痕都會加深，達到 Lv.2 即可破殼孵化專屬神獸！`
-                          : homeQuizCategory === 'all'
-                            ? '及時複習能強化神經突觸記憶，並為神獸提供豐厚飽食與經驗！若放任一天不複習，寵物會逐漸虛弱喔！'
-                            : `專注特訓【${selectedCategoryObj.shortLabel}】單字！複習完成將同步灌注經驗值給神獸，並推進每日學習成就！`}
+                          ? '完成測驗累積經驗，升到 Lv.2 就能孵化寵物。'
+                          : '複習能讓寵物獲得經驗與飽食度。'}
                       </p>
 
-                      {/* Category Selection Filter Pills */}
-                      <div className="mt-4 pt-4 border-t border-slate-800/80">
-                        <div className="flex items-center justify-between text-xs text-slate-400 mb-2.5">
-                          <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                            <BookOpen className="h-3.5 w-3.5 text-indigo-400" />
-                            🎯 選擇冒險測驗題庫範疇：
-                          </span>
-                          <span className="text-[11px] text-indigo-300 font-medium">
-                            {homeQuizCategory === 'all'
-                              ? `全庫 ${words.length} 字・待複習 ${dueWords.length} 字`
-                              : `已選 ${homeCategoryWords.length} 字・待複習 ${homeCategoryDueWords.length} 字`}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 overflow-x-auto pb-1.5 no-scrollbar">
+                      <div className="mt-3 flex items-center gap-3 text-xs text-slate-400">
+                        <span>
+                          待複習 <b className="text-white">{homeQuizCategory === 'all' ? dueWords.length : homeCategoryDueWords.length}</b>
+                        </span>
+                        <span className="h-3 w-px bg-slate-700" />
+                        <span>
+                          新字 <b className="text-white">{homeCategoryNewCount}</b>
+                        </span>
+                        <span className="h-3 w-px bg-slate-700" />
+                        <span>
+                          題庫 <b className="text-white">{homeCategoryWords.length}</b>
+                        </span>
+                      </div>
+
+                      {/* Quiz settings: category + batch size */}
+                      <div className="mt-4 rounded-2xl bg-slate-950/50 border border-slate-800/80 p-3 space-y-2.5">
+                      <div className="flex items-center gap-3">
+                        <span className="w-8 shrink-0 text-xs font-semibold text-slate-500">題庫</span>
+                        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
                           {HOME_QUIZ_CATEGORIES.map(cat => {
                             const isSelected = homeQuizCategory === cat.id;
-                            const count = cat.id === 'all' 
-                              ? words.length 
-                              : words.filter(w => w.category === cat.id).length;
+                            const count = cat.id === 'all' ? allWords.length : categoryCounts[cat.id] || 0;
                             return (
                               <button
                                 key={cat.id}
                                 type="button"
                                 onClick={() => setHomeQuizCategory(cat.id)}
-                                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                title={`${cat.shortLabel}（${count} 字）`}
+                                className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                                   isSelected
-                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/40 ring-1 ring-indigo-400/50 scale-105'
-                                    : 'bg-slate-950/70 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                                 }`}
                               >
                                 <span>{cat.label}</span>
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                                  isSelected ? 'bg-indigo-800 text-indigo-100' : 'bg-slate-800/80 text-slate-400'
-                                }`}>
+                                <span className={`text-[10px] font-normal ${isSelected ? 'text-indigo-200' : 'text-slate-600'}`}>
                                   {count}
                                 </span>
                               </button>
@@ -624,20 +676,9 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Batch Size Selector (20~30 題自選) */}
-                      <div className="mt-3 pt-3 border-t border-slate-800/80">
-                        <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                          <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                            <Zap className="h-3.5 w-3.5 text-amber-400" />
-                            ⚡ 每次測驗題量：
-                          </span>
-                          <span className="text-[11px] text-amber-300 font-medium">
-                            {currentBatchSize === 0
-                              ? '全量測驗'
-                              : `每次精選 ${currentQuizList.length} 題・短時高專注`}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                      <div className="flex items-center gap-3">
+                        <span className="w-8 shrink-0 text-xs font-semibold text-slate-500">題量</span>
+                        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
                           {BATCH_SIZE_OPTIONS.map(opt => {
                             const isSelected = (profile.quizBatchSize ?? 20) === opt.value;
                             return (
@@ -651,46 +692,48 @@ export default function App() {
                                     profile: { ...prev.profile, quizBatchSize: opt.value }
                                   }));
                                 }}
-                                className={`shrink-0 px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                className={`shrink-0 min-w-[2.5rem] px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                                   isSelected
-                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-sm'
-                                    : 'bg-slate-950/70 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                                 }`}
                               >
                                 {opt.label}
                               </button>
                             );
                           })}
+                          <span className="shrink-0 pl-1 text-xs text-slate-600">題 / 次</span>
                         </div>
+                      </div>
                       </div>
 
                       {/* Main Action Buttons */}
-                      <div className="mt-5 flex flex-wrap items-center gap-3">
+                      <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-2.5">
                         <button
                           disabled={currentQuizList.length === 0}
                           onClick={() => {
                             setCustomQuizList(currentQuizList);
                             setIsQuizActive(true);
                           }}
-                          className={`flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold text-white transition-all shadow-lg active:scale-95 cursor-pointer ${
+                          className={`flex items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold text-white transition-all active:scale-95 cursor-pointer ${
                             currentQuizList.length === 0
                               ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                              : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-600/30'
+                              : 'bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/25'
                           }`}
                         >
                           <Play className="h-4 w-4 fill-white" />
                           {pet.stage === 'egg'
-                            ? `🥚 開始【${selectedCategoryObj.shortLabel}】測驗・破殼孵化 (${currentQuizList.length} 題)`
-                            : `開始【${selectedCategoryObj.shortLabel}】智慧測驗 (${currentQuizList.length} 題)`}
+                            ? `開始測驗・孵化寵物（${currentQuizList.length} 題）`
+                            : `開始測驗（${currentQuizList.length} 題）`}
                         </button>
 
                         {weakWords.length > 0 && (
                           <button
                             onClick={() => setIsWeakDrillActive(true)}
-                            className="flex items-center gap-2 rounded-2xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 px-5 py-3.5 text-sm font-bold text-rose-300 transition-all active:scale-95 cursor-pointer"
+                            className="flex items-center justify-center gap-2 rounded-2xl border border-slate-700 hover:border-slate-600 hover:bg-slate-800/60 px-5 py-3.5 text-sm font-semibold text-slate-300 transition-all active:scale-95 cursor-pointer"
                           >
-                            <Flame className="h-4 w-4 text-rose-400 animate-pulse" />
-                            弱點加強特訓 ({weakWords.length} 字)
+                            <Flame className="h-4 w-4 text-rose-400" />
+                            弱點特訓（{weakWords.length} 字）
                           </button>
                         )}
                       </div>
@@ -698,47 +741,52 @@ export default function App() {
                   </div>
 
                   {/* Daily Quests Quick Dashboard */}
-                  <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl backdrop-blur-xl">
+                  <div className="rounded-2xl sm:rounded-3xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <Award className="h-4 w-4 text-amber-400" />
-                        <h3 className="text-sm font-bold text-white font-fun">
-                          今日學習目標與成就進度
-                        </h3>
+                        <Award className="h-4 w-4 text-slate-400" />
+                        <h3 className="text-sm font-bold text-white">今日任務</h3>
                       </div>
                       <button
                         onClick={() => setShowAchievements(true)}
-                        className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold"
+                        className="text-xs text-slate-400 hover:text-white font-semibold cursor-pointer"
                       >
-                        查看全部 →
+                        全部任務 →
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="space-y-2">
                       {quests.slice(0, 2).map(q => (
                         <div
                           key={q.id}
-                          className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3 flex items-center justify-between"
+                          className="rounded-xl bg-slate-950/50 px-3 py-2.5 flex items-center gap-3"
                         >
-                          <div>
-                            <p className="text-xs font-bold text-white">{q.title}</p>
-                            <p className="text-[11px] text-slate-400">{q.desc}</p>
-                            <span className="text-[10px] text-indigo-400 font-mono mt-1 block">
-                              進度: {q.current}/{q.target}
-                            </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-semibold text-white truncate" title={q.desc}>{q.title}</p>
+                              <span className="text-[11px] text-slate-500 shrink-0">
+                                {Math.min(q.current, q.target)}/{q.target}
+                              </span>
+                            </div>
+                            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                              <div
+                                className={`h-full rounded-full ${q.isCompleted ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                                style={{ width: `${Math.min(100, (q.current / Math.max(1, q.target)) * 100)}%` }}
+                              />
+                            </div>
                           </div>
-                          <div>
+                          <div className="shrink-0 w-12 text-right">
                             {q.isClaimed ? (
-                              <span className="text-[10px] text-slate-500 font-bold">已領取</span>
+                              <span className="text-[11px] text-slate-500">已領取</span>
                             ) : q.isCompleted ? (
                               <button
                                 onClick={() => handleClaimQuest(q.id)}
-                                className="rounded-xl bg-amber-500 hover:bg-amber-400 px-2.5 py-1 text-[11px] font-bold text-slate-950"
+                                className="rounded-lg bg-amber-500 hover:bg-amber-400 px-2.5 py-1 text-[11px] font-bold text-slate-950 cursor-pointer"
                               >
                                 領取
                               </button>
                             ) : (
-                              <span className="text-[10px] text-slate-500">進行中</span>
+                              <span className="text-[11px] text-slate-500">進行中</span>
                             )}
                           </div>
                         </div>
@@ -747,18 +795,18 @@ export default function App() {
                   </div>
 
                   {/* Vocabulary Status Quick Summary */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5 text-center">
-                      <p className="text-[11px] text-slate-400">總單字量</p>
+                  <div className="grid grid-cols-3 rounded-2xl border border-slate-800 bg-slate-900/60 divide-x divide-slate-800">
+                    <div className="p-3 text-center">
                       <p className="text-xl font-bold font-fun text-white">{words.length}</p>
+                      <p className="text-[11px] text-slate-400">學習中</p>
                     </div>
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5 text-center">
-                      <p className="text-[11px] text-emerald-400">已精通長期記憶</p>
-                      <p className="text-xl font-bold font-fun text-emerald-400">{masteredWords.length}</p>
+                    <div className="p-3 text-center">
+                      <p className="text-xl font-bold font-fun text-white">{masteredWords.length}</p>
+                      <p className="text-[11px] text-slate-400">已精通</p>
                     </div>
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5 text-center">
-                      <p className="text-[11px] text-rose-400">不熟易錯字</p>
-                      <p className="text-xl font-bold font-fun text-rose-400">{weakWords.length}</p>
+                    <div className="p-3 text-center">
+                      <p className="text-xl font-bold font-fun text-white">{weakWords.length}</p>
+                      <p className="text-[11px] text-slate-400">易錯字</p>
                     </div>
                   </div>
                 </div>
@@ -770,10 +818,12 @@ export default function App() {
         {/* TAB 2: VOCABULARY LIBRARY & CUSTOM WORDS */}
         {currentTab === 'library' && (
           <WordLibrary
-            words={words}
+            words={allWords}
+            progressIds={progressIds}
             onAddWord={handleAddWord}
             onImportWords={handleImportWords}
             onUpdateWord={handleUpdateWord}
+            onPatchWord={handlePatchWord}
             onDeleteWord={handleDeleteWord}
             onToggleWeak={handleToggleWeak}
             onStartSpecificQuiz={handleStartSpecificQuiz}
@@ -798,6 +848,20 @@ export default function App() {
       </main>
 
       {/* POPUP MODALS */}
+      {celebration && (
+        <EvolutionCelebrationModal
+          pet={celebration.pet}
+          hatched={celebration.hatched}
+          onClose={() => setCelebration(null)}
+        />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[60] max-w-[92vw] rounded-2xl bg-slate-900/95 border border-amber-500/40 px-4 py-3 text-sm font-bold text-amber-200 shadow-2xl animate-in fade-in duration-200">
+          {toast}
+        </div>
+      )}
+
       <MutationModal
         pet={pet}
         items={items}

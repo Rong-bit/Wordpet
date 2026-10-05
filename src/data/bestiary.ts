@@ -1,6 +1,7 @@
 import { BestiaryEntry, Pet, Item, PetElement } from '../types';
+import { EVOLUTION_LINES, EvolvedStage, HATCH_POOL, STAGE_MIN_RARITY } from './petSpecies';
 
-export const BESTIARY_DATA: BestiaryEntry[] = [
+const BASE_BESTIARY: BestiaryEntry[] = [
   {
     speciesId: 'p_egg_genesis',
     name: '起源神秘星蛋',
@@ -132,7 +133,116 @@ export const BESTIARY_DATA: BestiaryEntry[] = [
     requiredStage: 'ultimate',
     isUnlocked: false,
     iconSymbol: '🤖',
+  },
+  {
+    speciesId: 'p_radiant_bunny_1',
+    name: '棉花糖月兔',
+    element: 'radiant',
+    rarity: 'common',
+    description: '軟綿綿的粉紅小兔，一隻耳朵總是歪歪的，聽到正確發音就會開心地蹦跳。',
+    evolutionPath: '蛋 -> 棉花糖月兔 -> 星輝月宮兔',
+    requiredStage: 'baby',
+    isUnlocked: false,
+    iconSymbol: '🐰',
+  },
+  {
+    speciesId: 'p_frost_penguin_1',
+    name: '冰河小企鵝',
+    element: 'frost',
+    rarity: 'common',
+    description: '搖搖擺擺的小紳士，最愛在冰面上滑行複習單字，從不輕易放棄連勝。',
+    evolutionPath: '蛋 -> 冰河小企鵝 -> 極地帝王企鵝',
+    requiredStage: 'baby',
+    isUnlocked: false,
+    iconSymbol: '🐧',
+  },
+  {
+    speciesId: 'p_nature_panda_1',
+    name: '竹林糰子熊貓',
+    element: 'nature',
+    rarity: 'rare',
+    description: '頭頂竹葉的圓滾滾熊貓寶寶，吃飽了才有力氣背單字，餵食效果特別好。',
+    evolutionPath: '蛋 -> 竹林糰子熊貓 -> 翠竹武僧熊貓',
+    requiredStage: 'baby',
+    isUnlocked: false,
+    iconSymbol: '🐼',
+  },
+  {
+    speciesId: 'p_thunder_chick_1',
+    name: '奔雷雛鳥',
+    element: 'thunder',
+    rarity: 'rare',
+    description: '頂著閃電呆毛的毛茸茸雛鳥，答題越快翅膀拍得越起勁。',
+    evolutionPath: '蛋 -> 奔雷雛鳥 -> 奔雷電隼 -> 宙斯雷霆天鷹',
+    requiredStage: 'baby',
+    isUnlocked: false,
+    iconSymbol: '🐤',
+  },
+  {
+    speciesId: 'p_void_kitten_1',
+    name: '暗夜小咪',
+    element: 'void',
+    rarity: 'rare',
+    description: '額頭有月牙印記的紫色小貓，夜深人靜時陪你複習最有精神。',
+    evolutionPath: '蛋 -> 暗夜小咪 -> 虛空暗夜噬魂貓',
+    requiredStage: 'baby',
+    isUnlocked: false,
+    iconSymbol: '🐈',
+  },
+  {
+    speciesId: 'p_void_slime_1',
+    name: '星夜果凍史萊姆',
+    element: 'void',
+    rarity: 'epic',
+    description: '體內閃爍星光的 Q 彈果凍，答錯時會彈一彈把錯誤吸收掉。',
+    evolutionPath: '蛋 -> 星夜果凍史萊姆 -> 銀河王冠史萊姆',
+    requiredStage: 'baby',
+    isUnlocked: false,
+    iconSymbol: '🫧',
   }
+];
+
+const STAGE_ORDER: EvolvedStage[] = ['juvenile', 'adult', 'ultimate'];
+
+const lineEntries: BestiaryEntry[] = EVOLUTION_LINES.flatMap(line => {
+  const baby = HATCH_POOL.find(s => s.speciesId === line.baby);
+  const names = [baby?.name || '', ...STAGE_ORDER.map(st => line.forms[st].name)];
+  const path = `蛋 -> ${names.join(' -> ')}`;
+  const babyEntry: BestiaryEntry[] = baby
+    ? [{
+        speciesId: baby.speciesId,
+        name: baby.name,
+        element: baby.element,
+        rarity: baby.rarity,
+        description: baby.title,
+        evolutionPath: path,
+        requiredStage: 'baby',
+        isUnlocked: false,
+        iconSymbol: '🥚',
+      }]
+    : [];
+  return [
+    ...babyEntry,
+    ...STAGE_ORDER.map(st => ({
+      speciesId: line.forms[st].speciesId,
+      name: line.forms[st].name,
+      element: line.element,
+      rarity: STAGE_MIN_RARITY[st],
+      description: line.forms[st].description,
+      evolutionPath: path,
+      requiredStage: st,
+      isUnlocked: false,
+      iconSymbol: line.forms[st].iconSymbol,
+    })),
+  ];
+});
+
+export const BESTIARY_DATA: BestiaryEntry[] = [
+  ...BASE_BESTIARY.map(b => {
+    const fromLine = lineEntries.find(e => e.speciesId === b.speciesId);
+    return fromLine ? { ...b, evolutionPath: fromLine.evolutionPath } : b;
+  }),
+  ...lineEntries.filter(e => !BASE_BESTIARY.some(b => b.speciesId === e.speciesId)),
 ];
 
 export const INITIAL_ITEMS: Item[] = [
@@ -168,8 +278,8 @@ export const INITIAL_ITEMS: Item[] = [
   },
   {
     id: 'item_stone_fire',
-    name: '烈焰進化結晶',
-    description: '能引導寵物向火元素進化的神秘寶石，合成時提高變異機率 +20%。',
+    name: '進化結晶',
+    description: '不需等級門檻，讓寵物沿著自己的進化路線立即進化到下一階段。',
     icon: '🔮',
     type: 'evolution_stone',
     count: 1,
@@ -178,8 +288,8 @@ export const INITIAL_ITEMS: Item[] = [
   },
   {
     id: 'item_mutation_core',
-    name: '量子終極變異核心',
-    description: '啟動終極寵物變異的禁忌能源，讓完全體寵物跨越界限，晉升神話型態！',
+    name: '異色變異核心',
+    description: '立即進化到下一階段，並覺醒稀有的異色毛色與更高稀有度；最終型態也能使用來改變毛色。',
     icon: '💎',
     type: 'evolution_stone',
     count: 1,

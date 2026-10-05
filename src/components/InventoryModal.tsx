@@ -108,7 +108,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     </button>
                   ) : item.type === 'evolution_stone' ? (
                     <span className="text-[11px] text-purple-300 font-semibold">
-                      用於基因合成
+                      用於提前進化
                     </span>
                   ) : (
                     <span className="text-[11px] text-slate-500">已耗盡</span>

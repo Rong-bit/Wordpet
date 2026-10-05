@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { BestiaryEntry, PetRarity, Pet, PetElement, PetStage } from '../types';
-import { BESTIARY_DATA } from '../data/bestiary';
+import { BESTIARY_DATA, INITIAL_PET } from '../data/bestiary';
+import { HATCH_POOL } from '../data/petSpecies';
+import { evolveOneStage, hatchPet } from '../utils/evolution';
 import { PetCanvas } from './PetCanvas';
 import { soundFx } from '../utils/sound';
 import confetti from 'canvas-confetti';
@@ -41,10 +43,13 @@ interface ShowcasePetItem extends Pet {
   talentDesc: string;
   elementIcon: React.ReactNode;
   lore: string;
+  cleanliness?: number;
+  personality?: string;
+  stats?: { intelligence: number; endurance: number; speed: number };
 }
 
 // Complete showcase catalog covering all 12 species
-const ALL_SHOWCASE_PETS: ShowcasePetItem[] = [
+const BASE_SHOWCASE: ShowcasePetItem[] = [
   // --- 6 ULTIMATE MYTHIC FORMS ---
   {
     id: 'preview_ultimate_flame',
@@ -576,7 +581,64 @@ const ALL_SHOWCASE_PETS: ShowcasePetItem[] = [
     lore: '透過跨屬性禁忌變異合成的超維度機械神獸，藍色霓虹羽翼與量子光軌令人驚嘆。',
     elementIcon: <Bot className="h-4 w-4 text-cyan-400" />,
   },
+  ...HATCH_POOL.filter(
+    s => !['p_fire_dragon_1', 'p_frost_fox_1', 'p_nature_deer_1'].includes(s.speciesId)
+  ).map(
+    (s): ShowcasePetItem => ({
+      id: `preview_${s.speciesId}`,
+      name: s.name,
+      title: s.title,
+      element: s.element,
+      stage: 'baby',
+      rarity: s.rarity,
+      level: 8,
+      exp: 400,
+      maxExp: 600,
+      mood: 'happy',
+      hunger: 85,
+      health: 100,
+      genes: { ...s.genes },
+      customization: { hat: 'none', accessory: 'none', backgroundTheme: 'forest' },
+      speciesId: s.speciesId,
+      daysUnreviewed: 0,
+      lastFedAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
+      hatchedAt: new Date().toISOString(),
+      wordsLearnedCount: 40,
+      evolutionPower: 200,
+      specialTrait: s.trait,
+      talent: `【${s.trait.split('：')[0]}】`,
+      talentDesc: s.trait.split('：')[1] || s.trait,
+      lore: BESTIARY_DATA.find(b => b.speciesId === s.speciesId)?.description || s.title,
+      elementIcon: <Sparkles className="h-4 w-4 text-pink-300" />,
+    })
+  ),
 ];
+
+const evolvedShowcase: ShowcasePetItem[] = HATCH_POOL.flatMap(species => {
+  const forms: ShowcasePetItem[] = [];
+  let current: Pet | null = hatchPet(INITIAL_PET, species);
+  while ((current = evolveOneStage(current))) {
+    const p: Pet = current;
+    if (!BASE_SHOWCASE.some(s => s.speciesId === p.speciesId)) {
+      forms.push({
+        ...p,
+        id: `preview_${p.speciesId}`,
+        mood: 'happy',
+        hunger: 100,
+        health: 100,
+        customization: { hat: 'none', accessory: 'none', backgroundTheme: 'forest' },
+        talent: `【${p.specialTrait.split('：')[0]}】`,
+        talentDesc: p.specialTrait.split('：')[1] || p.specialTrait,
+        lore: BESTIARY_DATA.find(b => b.speciesId === p.speciesId)?.description || p.title,
+        elementIcon: <Sparkles className="h-4 w-4 text-amber-300" />,
+      });
+    }
+  }
+  return forms;
+});
+
+const ALL_SHOWCASE_PETS: ShowcasePetItem[] = [...BASE_SHOWCASE, ...evolvedShowcase];
 
 export const BestiaryModal: React.FC<BestiaryModalProps> = ({
   unlockedSpecies,
@@ -817,7 +879,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
                       {currentPet.name}
                     </h4>
                     <p className="text-xs text-amber-300/80 font-medium">
-                      称号：{currentPet.title}
+                      稱號：{currentPet.title}
                     </p>
                   </div>
 

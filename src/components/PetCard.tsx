@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Pet, Item } from '../types';
 import { PetCanvas } from './PetCanvas';
+import { getNextEvolution, HATCH_LEVEL } from '../utils/evolution';
+import { EVOLUTION_LEVELS } from '../data/petSpecies';
 import { soundFx } from '../utils/sound';
 import confetti from 'canvas-confetti';
 import {
@@ -75,6 +77,19 @@ export const PetCard: React.FC<PetCardProps> = ({
 
   const foodItems = items.filter(i => (i.type === 'food' || i.type === 'potion') && i.count > 0);
 
+  const nextEvolution = getNextEvolution(pet);
+  const prevGate =
+    pet.stage === 'juvenile' ? EVOLUTION_LEVELS.juvenile : pet.stage === 'adult' ? EVOLUTION_LEVELS.adult : HATCH_LEVEL;
+  const evolutionProgress = nextEvolution
+    ? Math.min(
+        100,
+        Math.max(
+          0,
+          ((pet.level - prevGate + pet.exp / Math.max(1, pet.maxExp)) / (nextEvolution.level - prevGate)) * 100
+        )
+      )
+    : 100;
+
   return (
     <>
       <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-800 bg-slate-900/80 p-3.5 sm:p-6 shadow-2xl backdrop-blur-xl transition-all">
@@ -99,34 +114,20 @@ export const PetCard: React.FC<PetCardProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            {/* Maximize Stage Button */}
-            <button
-              onClick={() => {
-                soundFx.playTap();
-                setIsExpandedStage(true);
-              }}
-              className="flex items-center gap-1 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition-colors border border-slate-700/50"
-              title="展開沉浸巨幕"
-            >
-              <Maximize2 className="h-3.5 w-3.5 text-amber-400" />
-              <span className="hidden sm:inline">全景巨幕</span>
-            </button>
+          <div className="flex items-center gap-0.5">
             <button
               onClick={onOpenCustomizer}
-              className="flex items-center gap-1 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 px-3 py-1.5 text-xs font-medium text-slate-200 transition-colors border border-slate-700/50"
-              title="造型工坊"
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer"
+              title="換裝"
             >
-              <Palette className="h-3.5 w-3.5 text-indigo-400" />
-              <span className="hidden sm:inline">換裝</span>
+              <Palette className="h-4 w-4" />
             </button>
             <button
               onClick={onOpenShare}
-              className="flex items-center gap-1 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 px-3 py-1.5 text-xs font-medium text-indigo-300 transition-colors border border-indigo-500/30"
-              title="生成分享卡"
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer"
+              title="分享卡"
             >
-              <Share2 className="h-3.5 w-3.5 text-indigo-400" />
-              <span className="hidden sm:inline">分享</span>
+              <Share2 className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -162,9 +163,12 @@ export const PetCard: React.FC<PetCardProps> = ({
 
           {/* Quick Maximize Hint at corner */}
           <button
-            onClick={() => setIsExpandedStage(true)}
-            className="absolute top-3 right-3 p-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-amber-300 border border-slate-700/60 transition-colors z-20"
-            title="放大查看無拘束全景"
+            onClick={() => {
+              soundFx.playTap();
+              setIsExpandedStage(true);
+            }}
+            className="absolute top-3 right-3 p-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/60 transition-colors z-20 cursor-pointer"
+            title="全螢幕檢視"
           >
             <Maximize2 className="h-4 w-4" />
           </button>
@@ -172,43 +176,59 @@ export const PetCard: React.FC<PetCardProps> = ({
           {/* Generous Hero Pet Canvas with Wide ViewBox */}
           <PetCanvas pet={pet} size="hero" onClick={handlePetPetting} />
 
-          <p className="mt-3 text-xs text-slate-400 italic flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-            點擊寵物撫摸互動・每天完成複習維持充沛活力
-          </p>
+          <p className="mt-2 text-xs text-slate-500">點一下寵物可以摸摸牠</p>
         </div>
 
         {/* EGG INCUBATION BANNER */}
         {pet.stage === 'egg' && (
-          <div className="mb-4 flex items-center gap-3 rounded-2xl bg-indigo-500/10 p-3.5 border border-indigo-500/30 text-indigo-200">
-            <Sparkles className="h-5 w-5 shrink-0 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
-            <div className="text-xs">
-              <p className="font-bold text-white flex items-center gap-1.5">
-                <span>🥚</span> 起源星蛋孵化中（當前 Lv.{pet.level}）
-              </p>
-              <p className="opacity-90 text-[11px] mt-0.5 text-indigo-300">
-                完成一輪單字複習（累積經驗達 Lv.2），蛋殼即可破殼孵化，誕生專屬神獸幼體！
-              </p>
+          <div className="mb-4 flex items-center gap-3 rounded-2xl bg-slate-950/50 p-3 border border-slate-800">
+            <Sparkles className="h-4 w-4 shrink-0 text-amber-400" />
+            <div className="text-xs min-w-0">
+              <p className="font-semibold text-white">孵化中・Lv.{pet.level} / Lv.{HATCH_LEVEL}</p>
+              <p className="text-[11px] mt-0.5 text-slate-400">完成一輪複習就能孵化</p>
             </div>
             <button
               onClick={onStartReview}
-              className="ml-auto shrink-0 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 px-3 py-1.5 text-xs font-bold text-slate-950 transition-colors shadow-md cursor-pointer"
+              className="ml-auto shrink-0 rounded-lg border border-slate-700 hover:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
             >
-              開始背單字破殼
+              去複習
             </button>
+          </div>
+        )}
+
+        {pet.stage !== 'egg' && (
+          <div className="mb-4 rounded-2xl bg-slate-950/50 p-3 border border-slate-800 text-xs text-slate-300">
+            {nextEvolution ? (
+              <>
+                <div className="flex justify-between font-semibold">
+                  <span>下一階段：{nextEvolution.form.name}</span>
+                  <span className="text-slate-400 font-normal">
+                    Lv.{pet.level} / Lv.{nextEvolution.level}
+                  </span>
+                </div>
+                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                  <div
+                    className="h-full rounded-full bg-purple-500 transition-all duration-500"
+                    style={{ width: `${evolutionProgress}%` }}
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="font-semibold">已達最終型態・可用「異色變異核心」覺醒異色</p>
+            )}
           </div>
         )}
 
         {/* INACTIVITY WARNING BANNER */}
         {pet.daysUnreviewed > 0 && (
-          <div className="mb-4 flex items-center gap-3 rounded-2xl bg-amber-500/10 p-3.5 border border-amber-500/30 text-amber-200">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400 animate-bounce" />
+          <div className="mb-4 flex items-center gap-3 rounded-2xl bg-amber-500/10 p-3 border border-amber-500/30 text-amber-200">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400" />
             <div className="text-xs">
               <p className="font-bold">
-                {pet.daysUnreviewed >= 3 ? '🚨 瀕臨逃跑警告！' : '⚠️ 寵物飢餓衰弱中！'}
+                {pet.daysUnreviewed >= 3 ? '寵物快要離家出走了！' : '寵物餓了'}
               </p>
               <p className="opacity-90 text-[11px] mt-0.5">
-                你已 {pet.daysUnreviewed} 天未複習單字。立即進行複習可恢復飽食與親密度！
+                已 {pet.daysUnreviewed} 天沒複習，複習一下就能恢復。
               </p>
             </div>
             <button
@@ -221,18 +241,18 @@ export const PetCard: React.FC<PetCardProps> = ({
         )}
 
         {/* Stats Gauges (EXP, Hunger, Health) */}
-        <div className="space-y-3 rounded-2xl bg-slate-950/60 p-4 border border-slate-800/80">
+        <div className="space-y-2.5 rounded-2xl bg-slate-950/50 p-3.5 border border-slate-800/80">
           {/* EXP Bar */}
           <div>
-            <div className="flex justify-between text-xs font-semibold mb-1">
-              <span className="flex items-center gap-1 text-indigo-400">
-                <Zap className="h-3.5 w-3.5" /> 學習經驗值
+            <div className="flex justify-between text-xs mb-1">
+              <span className="flex items-center gap-1.5 text-slate-300 font-semibold">
+                <Zap className="h-3.5 w-3.5 text-indigo-400" /> 經驗
               </span>
-              <span className="text-slate-300">
-                {pet.exp} / {pet.maxExp} EXP
+              <span className="text-slate-400">
+                {pet.exp} / {pet.maxExp}
               </span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
                 style={{ width: `${Math.min(100, (pet.exp / pet.maxExp) * 100)}%` }}
@@ -242,13 +262,13 @@ export const PetCard: React.FC<PetCardProps> = ({
 
           {/* Hunger Bar */}
           <div>
-            <div className="flex justify-between text-xs font-semibold mb-1">
-              <span className="flex items-center gap-1 text-amber-400">
-                <Utensils className="h-3.5 w-3.5" /> 飽食充沛度
+            <div className="flex justify-between text-xs mb-1">
+              <span className="flex items-center gap-1.5 text-slate-300 font-semibold">
+                <Utensils className="h-3.5 w-3.5 text-amber-400" /> 飽食
               </span>
-              <span className="text-slate-300">{pet.hunger}%</span>
+              <span className="text-slate-400">{pet.hunger}%</span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
                   pet.hunger > 50
@@ -264,13 +284,13 @@ export const PetCard: React.FC<PetCardProps> = ({
 
           {/* Health Bar */}
           <div>
-            <div className="flex justify-between text-xs font-semibold mb-1">
-              <span className="flex items-center gap-1 text-rose-400">
-                <Heart className="h-3.5 w-3.5 fill-rose-400" /> 健康生命力
+            <div className="flex justify-between text-xs mb-1">
+              <span className="flex items-center gap-1.5 text-slate-300 font-semibold">
+                <Heart className="h-3.5 w-3.5 text-rose-400 fill-rose-400" /> 健康
               </span>
-              <span className="text-slate-300">{pet.health}%</span>
+              <span className="text-slate-400">{pet.health}%</span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
               <div
                 className="h-full rounded-full bg-rose-500 transition-all duration-500"
                 style={{ width: `${pet.health}%` }}
@@ -285,10 +305,10 @@ export const PetCard: React.FC<PetCardProps> = ({
           <div className="relative">
             <button
               onClick={() => setShowFeedMenu(!showFeedMenu)}
-              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 px-4 py-3 text-sm font-semibold text-emerald-300 transition-all active:scale-95 shadow-sm"
+              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-slate-800/70 hover:bg-slate-800 border border-slate-700/60 px-4 py-3 text-sm font-semibold text-slate-200 transition-all active:scale-95 cursor-pointer"
             >
-              <Utensils className="h-4 w-4" />
-              餵食營養品
+              <Utensils className="h-4 w-4 text-amber-400" />
+              餵食
             </button>
 
             {/* Quick Feed Dropdown */}
@@ -334,37 +354,28 @@ export const PetCard: React.FC<PetCardProps> = ({
           {/* Mutation / Evolution Trigger Button */}
           <button
             onClick={onOpenMutation}
-            className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600/30 to-indigo-600/30 hover:from-purple-600/40 hover:to-indigo-600/40 border border-purple-500/40 px-4 py-3 text-sm font-semibold text-purple-300 transition-all active:scale-95 shadow-sm"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-slate-800/70 hover:bg-slate-800 border border-slate-700/60 px-4 py-3 text-sm font-semibold text-slate-200 transition-all active:scale-95 cursor-pointer"
           >
-            <Dna className="h-4 w-4 text-purple-400 animate-spin" style={{ animationDuration: '6s' }} />
-            基因合成變異
+            <Dna className="h-4 w-4 text-purple-400" />
+            進化與異色
           </button>
         </div>
 
-        {/* Special Trait Description */}
-        <div className="mt-4 rounded-xl bg-slate-800/40 p-3 border border-slate-800 text-xs text-slate-300">
-          <span className="font-bold text-amber-400">✨ 專屬特質：</span>
-          {pet.specialTrait}
+        {/* Special Trait + Bestiary link */}
+        <div className="mt-4 flex items-start justify-between gap-3 text-xs">
+          <p className="text-slate-400 leading-relaxed">
+            <span className="font-semibold text-slate-300">特質：</span>
+            {pet.specialTrait}
+          </p>
+          {onOpenBestiary && (
+            <button
+              onClick={onOpenBestiary}
+              className="shrink-0 font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              神獸圖鑑 →
+            </button>
+          )}
         </div>
-
-        {/* View Ultimate Forms Showcase Button */}
-        {onOpenBestiary && (
-          <button
-            onClick={onOpenBestiary}
-            className="mt-3 w-full flex items-center justify-between rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-orange-500/10 border border-amber-500/30 p-2.5 text-xs text-amber-300 hover:border-amber-400/60 transition-all group"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-base">👑</span>
-              <span className="font-bold">神獸終極形態全覽</span>
-              <span className="text-[10px] text-amber-400/80 bg-amber-500/20 px-1.5 py-0.5 rounded-full">
-                點擊預覽
-              </span>
-            </div>
-            <span className="text-[11px] text-amber-400 group-hover:translate-x-1 transition-transform">
-              日珥神龍 / 極光九尾 / 聖翼獨角獸 →
-            </span>
-          </button>
-        )}
       </div>
 
       {/* --- FULLSCREEN IMMERSIVE SANCTUARY MODAL --- */}
@@ -383,7 +394,7 @@ export const PetCard: React.FC<PetCardProps> = ({
             <div className="relative z-10 w-full flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Crown className="h-5 w-5 text-amber-400" />
-                <h3 className="text-lg font-bold font-fun text-white">神獸沉浸聖域巨幕</h3>
+                <h3 className="text-lg font-bold font-fun text-white">全螢幕檢視</h3>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                   Lv.{pet.level} {stageLabels[pet.stage]}
                 </span>
@@ -415,7 +426,7 @@ export const PetCard: React.FC<PetCardProps> = ({
             <div className="relative z-10 w-full max-w-md space-y-3 text-center">
               <p className="text-xs text-slate-300 flex items-center justify-center gap-1.5">
                 <Sparkles className="h-4 w-4 text-amber-400" />
-                點擊畫面任何位置撫摸寵物・全面舒展神獸羽翼與天體光環
+                點一下寵物可以摸摸牠
               </p>
 
               <div className="flex items-center justify-center gap-3 pt-2">
@@ -424,21 +435,21 @@ export const PetCard: React.FC<PetCardProps> = ({
                   className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-all"
                 >
                   <Palette className="h-4 w-4 text-indigo-400" />
-                  造型飾品工坊
+                  換裝
                 </button>
                 <button
                   onClick={onOpenMutation}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-purple-600/30 hover:bg-purple-600/40 text-purple-200 text-xs font-bold border border-purple-500/40 transition-all"
                 >
                   <Dna className="h-4 w-4 text-purple-400" />
-                  基因合成實驗
+                  進化與異色
                 </button>
                 <button
                   onClick={() => setIsExpandedStage(false)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all"
                 >
                   <Minimize2 className="h-4 w-4" />
-                  返回主面板
+                  返回
                 </button>
               </div>
             </div>

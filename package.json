@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "wordbanks": "node scripts/build-wordbanks.mjs",
+    "check:zh": "node scripts/check-traditional.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -19,6 +21,7 @@
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "opencc-js": "^1.4.2",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "vite": "^8.3.0"

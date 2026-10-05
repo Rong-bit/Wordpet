@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Word, WordCategory } from '../types';
 import { speakEnglish } from '../utils/tts';
 import { getVerbForms, getNounForms, detectPartOfSpeech } from '../utils/englishGrammar';
@@ -9,6 +9,8 @@ import {
   downloadFile,
   parseImportedContent,
 } from '../utils/wordImportExport';
+import { enrichWord, getGeminiKey, isTemplateContent, setGeminiKey } from '../utils/wordEnrichment';
+import { isBankWordId } from '../utils/wordBank';
 import {
   Search,
   Plus,
@@ -27,13 +29,19 @@ import {
   Upload,
   FileText,
   Check,
+  MoreHorizontal,
 } from 'lucide-react';
+
+const PAGE_SIZE = 60;
+const MAX_BATCH_ENRICH = 30;
 
 interface WordLibraryProps {
   words: Word[];
+  progressIds?: Set<string>;
   onAddWord: (word: Word) => void;
   onImportWords?: (words: Word[]) => void;
   onUpdateWord?: (word: Word) => void;
+  onPatchWord?: (wordId: string, patch: Partial<Word>) => void;
   onDeleteWord?: (wordId: string) => void;
   onToggleWeak: (wordId: string) => void;
   onStartSpecificQuiz: (selectedWords: Word[]) => void;
@@ -43,19 +51,81 @@ interface WordLibraryProps {
 
 export const WordLibrary: React.FC<WordLibraryProps> = ({
   words,
+  progressIds,
   onAddWord,
   onImportWords,
   onUpdateWord,
+  onPatchWord,
   onDeleteWord,
   onToggleWeak,
   onStartSpecificQuiz,
   voiceGender,
   voiceSpeed,
 }) => {
+  const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
+  const [failedEnrichIds, setFailedEnrichIds] = useState<Set<string>>(new Set());
+  const [isBatchEnriching, setIsBatchEnriching] = useState(false);
+  const [hasGeminiKey, setHasGeminiKey] = useState(() => !!getGeminiKey());
+  const wordsRef = useRef(words);
+  wordsRef.current = words;
+
+  const runEnrich = async (target: Word) => {
+    setEnrichingIds(prev => new Set(prev).add(target.id));
+    setFailedEnrichIds(prev => {
+      const next = new Set(prev);
+      next.delete(target.id);
+      return next;
+    });
+    const patch = await enrichWord(target, wordsRef.current);
+    if (patch) {
+      onPatchWord?.(target.id, patch);
+    } else {
+      setFailedEnrichIds(prev => new Set(prev).add(target.id));
+    }
+    setEnrichingIds(prev => {
+      const next = new Set(prev);
+      next.delete(target.id);
+      return next;
+    });
+  };
+
+  const runBatchEnrich = async (targets: Word[]) => {
+    if (isBatchEnriching || targets.length === 0) return;
+    setIsBatchEnriching(true);
+    for (const t of targets) {
+      await runEnrich(t);
+      await new Promise(r => setTimeout(r, 350));
+    }
+    setIsBatchEnriching(false);
+  };
+
+  const handleConfigureGeminiKey = () => {
+    const current = getGeminiKey();
+    const input = window.prompt(
+      '請貼上 Gemini API 金鑰（可至 Google AI Studio 免費申請）。\n設定後會用 AI 產生更道地的例句與觀念解析；留空並按確定可清除金鑰。\n金鑰只會儲存在這台裝置的瀏覽器中。',
+      current
+    );
+    if (input === null) return;
+    setGeminiKey(input);
+    setHasGeminiKey(!!getGeminiKey());
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [filterMode, setFilterMode] = useState<'all' | 'due' | 'weak' | 'mastered'>('all');
+  const [levelFilter, setLevelFilter] = useState<number>(0);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [searchTerm, selectedCategory, filterMode, levelFilter]);
+
+  useEffect(() => {
+    setLevelFilter(0);
+  }, [selectedCategory]);
+
+  const isUnstarted = (w: Word) => !!progressIds && !progressIds.has(w.id);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isManualPos, setIsManualPos] = useState(false);
 
   // New Word Form State - Simplified & Clean
@@ -166,8 +236,15 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
     let confusionNotes = editingWord.confusionNotes;
     let exampleEn = editingWord.exampleEn;
     let exampleZh = editingWord.exampleZh;
+    let phonetic = editingWord.phonetic;
 
-    if (isEditVerb) {
+    const contentChanged =
+      trimmedWord.toLowerCase() !== editingWord.word.trim().toLowerCase() ||
+      editForm.partOfSpeech !== editingWord.partOfSpeech;
+
+    if (!contentChanged) {
+      // keep existing example sentence & notes
+    } else if (isEditVerb) {
       const forms = getVerbForms(trimmedWord);
       confusionNotes = `【動詞三態】原形：${forms.base} | 過去式：${forms.past} | 過去分詞：${forms.pastParticiple} | 現在分詞：${forms.ing}`;
       exampleEn = `We should ${forms.base} this carefully.`;
@@ -182,11 +259,14 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
       exampleEn = `Remember the usage of "${trimmedWord}".`;
       exampleZh = `請記住「${trimmedMeaning}」的語境用法。`;
     }
+    if (trimmedWord.toLowerCase() !== editingWord.word.trim().toLowerCase()) {
+      phonetic = `/${trimmedWord.toLowerCase()}/`;
+    }
 
     const updated: Word = {
       ...editingWord,
       word: trimmedWord,
-      phonetic: `/${trimmedWord.toLowerCase()}/`,
+      phonetic,
       partOfSpeech: editForm.partOfSpeech,
       meaning: trimmedMeaning,
       category: editForm.category,
@@ -197,10 +277,17 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
 
     onUpdateWord?.(updated);
     setEditingWord(null);
+    if (contentChanged || isTemplateContent(updated)) {
+      runEnrich(updated);
+    }
   };
 
   const handleDeleteConfirm = (word: Word) => {
-    const ok = window.confirm(`確定要從單字庫中刪除「${word.word} (${word.meaning})」嗎？此動作無法復原。`);
+    const ok = window.confirm(
+      isBankWordId(word.id)
+        ? `確定要清除「${word.word} (${word.meaning})」的學習紀錄嗎？單字仍會保留在內建詞庫中，變回未學習的新字。`
+        : `確定要從單字庫中刪除「${word.word} (${word.meaning})」嗎？此動作無法復原。`
+    );
     if (ok) {
       onDeleteWord?.(word.id);
     }
@@ -285,6 +372,9 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
     const duplicates = parsedImportWords.filter(w => existingMap.has(w.word.toLowerCase()));
     onImportWords?.(parsedImportWords);
     const addedCount = parsedImportWords.length - duplicates.length;
+    runBatchEnrich(
+      parsedImportWords.filter(w => !existingMap.has(w.word.toLowerCase()) && isTemplateContent(w))
+    );
     setShowImportModal(false);
     setImportText('');
     setParsedImportWords([]);
@@ -299,28 +389,43 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
   const now = new Date().getTime();
 
   // Filter words
+  const searchLower = searchTerm.trim().toLowerCase();
   const filteredWords = words.filter(w => {
     // Search filter
     const matchesSearch =
-      w.word.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      w.meaning.includes(searchTerm);
+      !searchLower ||
+      w.word.toLowerCase().includes(searchLower) ||
+      w.meaning.includes(searchTerm.trim());
 
     // Category filter
     const matchesCategory =
       selectedCategory === 'all' || w.category === selectedCategory;
 
+    const matchesLevel = !levelFilter || w.level === levelFilter;
+
     // Mode filter
     let matchesMode = true;
     if (filterMode === 'due') {
-      matchesMode = new Date(w.nextReviewAt).getTime() <= now;
+      matchesMode = !isUnstarted(w) && new Date(w.nextReviewAt).getTime() <= now;
     } else if (filterMode === 'weak') {
       matchesMode = w.isWeak;
     } else if (filterMode === 'mastered') {
       matchesMode = w.status === 'mastered';
     }
 
-    return matchesSearch && matchesCategory && matchesMode;
+    return matchesSearch && matchesCategory && matchesLevel && matchesMode;
   });
+
+  const visibleWords = filteredWords.slice(0, visibleCount);
+
+  const availableLevels =
+    selectedCategory === 'all'
+      ? []
+      : Array.from(new Set(words.filter(w => w.category === selectedCategory).map(w => w.level))).sort((a, b) => a - b);
+
+  const templateWords = filteredWords
+    .filter(w => isTemplateContent(w) && !failedEnrichIds.has(w.id))
+    .slice(0, MAX_BATCH_ENRICH);
 
   const handleCreateWord = (e: React.FormEvent) => {
     e.preventDefault();
@@ -384,6 +489,7 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
     };
 
     onAddWord(created);
+    runEnrich(created);
     setShowAddModal(false);
     setNewWord({
       word: '',
@@ -394,14 +500,14 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
   };
 
   const categories = [
-    { id: 'all', label: '全部單字' },
-    { id: 'junior', label: '國中必背單字' },
-    { id: 'highschool', label: '高中 7000 單' },
-    { id: 'toeic', label: '多益 TOEIC' },
-    { id: 'toefl', label: '托福 TOEFL' },
-    { id: 'business', label: '商務職場' },
-    { id: 'daily', label: '常用生活' },
-    { id: 'custom', label: '⭐️ 自訂單字本' },
+    { id: 'all', label: '全部' },
+    { id: 'junior', label: '國中' },
+    { id: 'highschool', label: '高中' },
+    { id: 'toeic', label: '多益' },
+    { id: 'toefl', label: '托福' },
+    { id: 'business', label: '商務' },
+    { id: 'daily', label: '生活' },
+    { id: 'custom', label: '自訂' },
   ];
 
   const categoryLabels: Record<string, string> = {
@@ -419,43 +525,89 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
       {/* Top Action Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold font-fun text-white flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-indigo-400" />
-            單字庫與自訂學習區
-          </h2>
-          <p className="text-xs text-slate-400">
-            共收錄 {words.length} 個單字・可新增自學單字庫並進行專屬熟悉測驗
+          <h2 className="text-2xl font-bold font-fun text-white">單字庫</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            共 {words.length} 字
+            {progressIds ? `・學習中 ${progressIds.size} 字` : ''}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          {/* Export Words Button */}
-          <button
-            onClick={() => setShowExportModal(true)}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
-            title="匯出單字本（支援 CSV / JSON / TXT 試算表格式）"
-          >
-            <Download className="h-3.5 w-3.5 text-sky-400" />
-            匯出
-          </button>
-
-          {/* Import Words Button */}
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
-            title="匯入單字本（支援上傳檔案或批量貼上）"
-          >
-            <Upload className="h-3.5 w-3.5 text-emerald-400" />
-            匯入
-          </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* Secondary tools: export / import / AI */}
+          <div className="relative">
+            <button
+              onClick={() => setShowMoreMenu(o => !o)}
+              className={`flex items-center justify-center rounded-xl border border-slate-700 px-2.5 py-2 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer ${
+                showMoreMenu ? 'bg-slate-800 text-white' : ''
+              }`}
+              title="更多工具"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+            {showMoreMenu && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowMoreMenu(false)} />
+                <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 z-40 w-60 rounded-2xl border border-slate-800 bg-slate-900 p-1.5 shadow-2xl">
+                  {[
+                    {
+                      key: 'import',
+                      icon: <Upload className="h-4 w-4" />,
+                      label: '匯入單字',
+                      onClick: () => setShowImportModal(true),
+                    },
+                    {
+                      key: 'export',
+                      icon: <Download className="h-4 w-4" />,
+                      label: '匯出單字',
+                      onClick: () => setShowExportModal(true),
+                    },
+                    {
+                      key: 'ai',
+                      icon: <Sparkles className="h-4 w-4" />,
+                      label: hasGeminiKey ? 'AI 金鑰（已啟用）' : '設定 AI 金鑰',
+                      onClick: handleConfigureGeminiKey,
+                    },
+                  ].map(item => (
+                    <button
+                      key={item.key}
+                      onClick={() => {
+                        setShowMoreMenu(false);
+                        item.onClick();
+                      }}
+                      className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <span className="text-slate-500">{item.icon}</span>
+                      {item.label}
+                    </button>
+                  ))}
+                  {templateWords.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setShowMoreMenu(false);
+                        runBatchEnrich(templateWords);
+                      }}
+                      disabled={isBatchEnriching}
+                      className="w-full flex items-start gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer disabled:opacity-50 border-t border-slate-800 mt-1 pt-2.5"
+                      title="為缺少真實例句與觀念解析的單字自動補全"
+                    >
+                      <FileText className="h-4 w-4 text-slate-500 shrink-0" />
+                      <span>
+                        {isBatchEnriching ? '補全中…' : '補全例句與解析'}
+                        <span className="block text-[11px] font-normal text-slate-500">目前清單前 {templateWords.length} 字</span>
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
 
           {filteredWords.length > 0 && (
             <button
-              onClick={() => onStartSpecificQuiz(filteredWords)}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/40 border border-indigo-500/40 px-3.5 py-2 text-xs font-bold text-indigo-200 transition-colors cursor-pointer"
+              onClick={() => onStartSpecificQuiz(filteredWords.slice(0, 30))}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 hover:bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
             >
-              <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
-              測驗此清單 ({filteredWords.length})
+              測驗此清單（{filteredWords.length > 30 ? '前 30' : filteredWords.length}）
             </button>
           )}
 
@@ -464,13 +616,17 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
               setIsManualPos(false);
               setShowAddModal(true);
             }}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3.5 py-2 text-xs font-bold text-white transition-colors shadow-lg shadow-indigo-600/30 cursor-pointer"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3.5 py-2 text-xs font-bold text-white transition-colors cursor-pointer"
           >
             <Plus className="h-4 w-4" />
-            新增自訂單字
+            新增單字
           </button>
         </div>
       </div>
+
+      {isBatchEnriching && (
+        <p className="text-xs text-indigo-300 animate-pulse">正在補全例句與解析…</p>
+      )}
 
       {/* Import Success Toast Banner */}
       {importSuccessMsg && (
@@ -489,81 +645,89 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
       )}
 
       {/* Filter and Search Bar */}
-      <div className="space-y-3 rounded-2xl bg-slate-900/80 p-4 border border-slate-800">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder="搜尋英文單字或中文釋義..."
-              className="w-full rounded-xl bg-slate-950 border border-slate-700/80 pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-            />
-          </div>
+      <div className="space-y-2.5 rounded-2xl bg-slate-900/80 p-3.5 sm:p-4 border border-slate-800">
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="搜尋英文或中文…"
+            className="w-full rounded-xl bg-slate-950 border border-slate-700/80 pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+          />
+        </div>
 
-          {/* Quick Status Filter Tabs */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
-            <button
-              onClick={() => setFilterMode('all')}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium shrink-0 transition-colors ${
-                filterMode === 'all'
-                  ? 'bg-indigo-600 text-white font-bold'
-                  : 'text-slate-400 hover:text-white bg-slate-800/40'
-              }`}
-            >
-              全部
-            </button>
-            <button
-              onClick={() => setFilterMode('due')}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium shrink-0 transition-colors ${
-                filterMode === 'due'
-                  ? 'bg-indigo-600 text-white font-bold'
-                  : 'text-slate-400 hover:text-white bg-slate-800/40'
-              }`}
-            >
-              待複習
-            </button>
-            <button
-              onClick={() => setFilterMode('weak')}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium shrink-0 transition-colors ${
-                filterMode === 'weak'
-                  ? 'bg-rose-600 text-white font-bold'
-                  : 'text-rose-300 hover:text-white bg-rose-950/40'
-              }`}
-            >
-              易錯弱點
-            </button>
-            <button
-              onClick={() => setFilterMode('mastered')}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium shrink-0 transition-colors ${
-                filterMode === 'mastered'
-                  ? 'bg-emerald-600 text-white font-bold'
-                  : 'text-emerald-300 hover:text-white bg-emerald-950/40'
-              }`}
-            >
-              已掌握
-            </button>
+        {/* Status filter */}
+        <div className="flex items-center gap-3">
+          <span className="w-8 shrink-0 text-xs font-semibold text-slate-500">狀態</span>
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+            {([
+              { id: 'all', label: '全部' },
+              { id: 'due', label: '待複習' },
+              { id: 'weak', label: '易錯' },
+              { id: 'mastered', label: '已掌握' },
+            ] as const).map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => setFilterMode(opt.id)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold shrink-0 transition-colors cursor-pointer ${
+                  filterMode === opt.id
+                    ? 'bg-indigo-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Category Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pt-1">
-          {categories.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`rounded-xl px-3 py-1 text-xs shrink-0 transition-all ${
-                selectedCategory === cat.id
-                  ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-bold'
-                  : 'text-slate-400 hover:text-slate-200 border border-transparent hover:bg-slate-800/40'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+        {/* Category filter */}
+        <div className="flex items-center gap-3">
+          <span className="w-8 shrink-0 text-xs font-semibold text-slate-500">分類</span>
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold shrink-0 transition-colors cursor-pointer ${
+                  selectedCategory === cat.id
+                    ? 'bg-indigo-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {availableLevels.length > 1 && (
+          <div className="flex items-center gap-3">
+            <span className="w-8 shrink-0 text-xs font-semibold text-slate-500">級別</span>
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+              {[0, ...availableLevels].map(lv => (
+                <button
+                  key={lv}
+                  onClick={() => setLevelFilter(lv)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold shrink-0 transition-colors cursor-pointer ${
+                    levelFilter === lv
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  }`}
+                >
+                  {lv === 0 ? '全部' : `L${lv}`}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <p className="text-xs text-slate-500">
+          符合條件 {filteredWords.length} 字
+          {filteredWords.length > visibleWords.length ? `，目前顯示前 ${visibleWords.length} 字` : ''}
+        </p>
       </div>
 
       {/* Words Grid */}
@@ -576,108 +740,155 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
             </p>
           </div>
         ) : (
-          filteredWords.map(w => {
-            const isDue = new Date(w.nextReviewAt).getTime() <= now;
+          visibleWords.map(w => {
+            const unstarted = isUnstarted(w);
+            const isDue = !unstarted && new Date(w.nextReviewAt).getTime() <= now;
 
             return (
               <div
                 key={w.id}
-                className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5 hover:border-slate-700 transition-all hover:shadow-lg"
+                className="flex flex-col rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5 hover:border-slate-700 transition-colors"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-xl sm:text-2xl font-black font-fun text-white tracking-wide">{w.word}</h3>
-                    <span className="text-sm text-slate-400 font-mono">{w.phonetic}</span>
-                    <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-indigo-300 font-bold">
-                      {w.partOfSpeech}
-                    </span>
-                    <span className="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-bold">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-xl sm:text-2xl font-bold font-fun text-white tracking-wide break-all">{w.word}</h3>
+                      <button
+                        onClick={() => speakEnglish(w.word, voiceGender, voiceSpeed)}
+                        className="shrink-0 text-slate-500 hover:text-indigo-400 p-1 transition-colors cursor-pointer"
+                        title="朗讀"
+                      >
+                        <Volume2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      <span className="font-mono">{w.phonetic}</span>
+                      <span className="mx-1.5">·</span>
+                      <span className="text-slate-400">{w.partOfSpeech}</span>
+                      <span className="mx-1.5">·</span>
                       {categoryLabels[w.category] || w.category}
+                    </p>
+                  </div>
+
+                  {/* Status Badge */}
+                  {unstarted ? (
+                    <span className="shrink-0 rounded-md bg-slate-800 text-slate-300 text-[11px] px-2 py-0.5 font-semibold">
+                      新字
                     </span>
-                    <button
-                      onClick={() => speakEnglish(w.word, voiceGender, voiceSpeed)}
-                      className="text-slate-400 hover:text-indigo-400 p-1.5 transition-colors cursor-pointer"
-                      title="朗讀"
-                    >
-                      <Volume2 className="h-4.5 w-4.5" />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {/* Edit Word Button */}
-                    <button
-                      onClick={() => startEditingWord(w)}
-                      className="p-1.5 rounded-lg text-xs text-slate-400 hover:text-indigo-300 hover:bg-slate-800 transition-colors cursor-pointer"
-                      title="修改單字內容 (拼寫、中文、詞性、分類)"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-
-                    {/* Delete Word Button */}
-                    <button
-                      onClick={() => handleDeleteConfirm(w)}
-                      className="p-1.5 rounded-lg text-xs text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
-                      title="刪除此單字"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-
-                    {/* Weak Button Toggle */}
-                    <button
-                      onClick={() => onToggleWeak(w.id)}
-                      className={`p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
-                        w.isWeak
-                          ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                          : 'text-slate-500 hover:text-rose-400 hover:bg-slate-800'
-                      }`}
-                      title={w.isWeak ? '已標記為易錯單字' : '標記為不熟/易錯'}
-                    >
-                      <AlertTriangle className="h-4 w-4" />
-                    </button>
-
-                    {/* Status Badge */}
-                    {w.status === 'mastered' ? (
-                      <span className="rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs px-2 py-0.5 font-bold">
-                        精通
-                      </span>
-                    ) : isDue ? (
-                      <span className="rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs px-2 py-0.5 font-bold">
-                        今日待複習
-                      </span>
-                    ) : (
-                      <span className="rounded-md bg-slate-800 text-slate-400 text-xs px-2 py-0.5">
-                        間隔中
-                      </span>
-                    )}
-                  </div>
+                  ) : w.status === 'mastered' ? (
+                    <span className="shrink-0 rounded-md bg-emerald-500/15 text-emerald-300 text-[11px] px-2 py-0.5 font-semibold">
+                      精通
+                    </span>
+                  ) : isDue ? (
+                    <span className="shrink-0 rounded-md bg-amber-500/15 text-amber-300 text-[11px] px-2 py-0.5 font-semibold">
+                      待複習
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-md bg-slate-800 text-slate-400 text-[11px] px-2 py-0.5">
+                      間隔中
+                    </span>
+                  )}
                 </div>
 
-                <p className="text-base sm:text-lg font-black text-amber-300 mt-2">{w.meaning}</p>
+                <p className="text-base sm:text-lg font-semibold text-slate-100 mt-2">{w.meaning}</p>
 
                 {/* Example sentence */}
-                <div className="mt-3 rounded-xl bg-slate-950/60 p-3 border border-slate-800/80 text-sm">
-                  <p className="text-slate-200 italic leading-relaxed">"{w.exampleEn}"</p>
-                  <p className="text-slate-400 text-xs sm:text-sm mt-1">{w.exampleZh}</p>
-                </div>
+                {w.exampleEn && (
+                  <div className="mt-3 rounded-xl bg-slate-950/50 px-3 py-2.5 text-sm">
+                    <p className="text-slate-200 leading-relaxed">{w.exampleEn}</p>
+                    <p className="text-slate-500 text-xs sm:text-sm mt-1">{w.exampleZh}</p>
+                  </div>
+                )}
 
                 {/* Notes */}
                 {w.confusionNotes && (
-                  <p className="mt-2.5 text-xs sm:text-sm text-slate-300 leading-relaxed">
-                    💡 <span className="text-amber-200/90 font-bold">觀念解析：</span> {w.confusionNotes}
+                  <p className="mt-2.5 text-xs sm:text-sm text-slate-400 leading-relaxed">
+                    <span className="text-slate-300 font-semibold">解析：</span>{w.confusionNotes}
                   </p>
                 )}
 
-                {/* Footer SRS metrics */}
-                <div className="mt-3.5 pt-2.5 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-mono">
-                  <span>重複次數: {w.repetition}</span>
-                  <span>複習間隔: {w.intervalDays} 天</span>
-                  <span>連續正確: {w.consecutiveCorrect}</span>
+                {enrichingIds.has(w.id) ? (
+                  <p className="mt-2 text-xs text-indigo-300 animate-pulse">正在產生例句與解析…</p>
+                ) : (
+                  isTemplateContent(w) && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => runEnrich(w)}
+                        disabled={isBatchEnriching}
+                        className="flex items-center gap-1 text-xs font-semibold text-indigo-300 hover:text-indigo-200 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        補全例句與解析
+                      </button>
+                      {failedEnrichIds.has(w.id) && (
+                        <span className="text-xs text-rose-300">
+                          查無資料或網路不通{hasGeminiKey ? '' : '，可設定 AI 金鑰後再試'}
+                        </span>
+                      )}
+                    </div>
+                  )
+                )}
+
+                {/* Footer: SRS metrics + actions */}
+                <div className="mt-auto pt-3">
+                  <div className="pt-2.5 border-t border-slate-800/60 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-slate-500">
+                      {unstarted
+                        ? '尚未開始學習'
+                        : `複習 ${w.repetition} 次・間隔 ${w.intervalDays} 天・連對 ${w.consecutiveCorrect}`}
+                    </span>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <button
+                        onClick={() => onToggleWeak(w.id)}
+                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          w.isWeak
+                            ? 'bg-rose-500/15 text-rose-400'
+                            : 'text-slate-500 hover:text-rose-400 hover:bg-slate-800'
+                        }`}
+                        title={w.isWeak ? '已標記為易錯（點擊取消）' : '標記為易錯'}
+                      >
+                        <AlertTriangle className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => startEditingWord(w)}
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                        title="編輯"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      {!unstarted && (
+                        <button
+                          onClick={() => handleDeleteConfirm(w)}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                          title={isBankWordId(w.id) ? '清除此單字的學習紀錄' : '刪除此單字'}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             );
           })
         )}
       </div>
+
+      {filteredWords.length > visibleWords.length && (
+        <div className="flex justify-center">
+          <button
+            onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+            className="rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 px-5 py-2 text-xs font-bold text-slate-200 transition-colors cursor-pointer"
+          >
+            顯示更多（還有 {filteredWords.length - visibleWords.length} 字）
+          </button>
+        </div>
+      )}
+
+      <p className="text-[11px] leading-relaxed text-slate-500 text-center px-2">
+        內建詞庫來源：大考中心《高中英文參考詞彙表》（非營利使用）、教育部國中小參考字彙表、
+        NGSL Project TOEIC / Business Service List（CC BY-SA 4.0）、ECDICT 中文釋義（MIT）。
+      </p>
 
       {/* ADD CUSTOM WORD MODAL */}
       {showAddModal && (
