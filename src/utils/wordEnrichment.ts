@@ -56,6 +56,57 @@ export const isTemplateContent = (w: Pick<Word, 'exampleEn' | 'confusionNotes'>)
 const isPlaceholderPhonetic = (w: Word) =>
   !w.phonetic || w.phonetic.trim() === `/${w.word.trim().toLowerCase()}/`;
 
+/** True if the sentence uses the word itself or a regular inflection of it (study → studied, make → making). */
+export const sentenceUsesWord = (sentence: string, word: string): boolean => {
+  const key = word.trim().toLowerCase();
+  if (!key || !sentence) return false;
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const forms = new Set([key]);
+  if (!key.includes(' ')) {
+    if (key.length > 3 && /[ey]$/.test(key)) forms.add(key.slice(0, -1));
+    if (/[^aeiou][aeiou][bdgmnprt]$/.test(key)) forms.add(key + key.slice(-1));
+  }
+  const re = new RegExp(`\\b(${[...forms].map(escape).join('|')})[a-z]*\\b`, 'i');
+  return re.test(sentence);
+};
+
+/**
+ * If `word` is not a known word in the library, return the closest known spelling (likely typo fix).
+ * Phrases and words already present in the library are treated as correct.
+ */
+const isSubsequence = (short: string, long: string) => {
+  let i = 0;
+  for (const ch of long) if (ch === short[i]) i++;
+  return i === short.length;
+};
+
+export const findSpellingSuggestion = (word: string, library: Word[]): string | null => {
+  const raw = word.trim();
+  if (/^[A-Z][a-z]+$/.test(raw)) return null;
+  const key = raw.toLowerCase();
+  if (key.length < 3 || /[^a-z'-]/.test(key)) return null;
+  const known = [...INITIAL_WORDS, ...library];
+  if (known.some(w => w.word.trim().toLowerCase() === key)) return null;
+  const maxDist = key.length <= 4 ? 1 : 2;
+  // Lower score wins: edit distance first, then prefer "dropped a letter" typos (aple → apple),
+  // then same first letter.
+  let best: string | null = null;
+  let bestScore = Infinity;
+  for (const w of known) {
+    const other = w.word.trim().toLowerCase();
+    if (other.includes(' ') || Math.abs(other.length - key.length) > maxDist) continue;
+    const sameLetters = other.length === key.length && [...other].sort().join('') === [...key].sort().join('');
+    const d = sameLetters ? 1 : levenshtein(key, other);
+    if (d > maxDist) continue;
+    const score = d * 10 + (isSubsequence(key, other) ? 0 : 3) + (other[0] === key[0] ? 0 : 2);
+    if (score < bestScore) {
+      best = other;
+      bestScore = score;
+    }
+  }
+  return best;
+};
+
 const fromLibrary = (word: Word, library: Word[]): EnrichedContent | null => {
   const key = word.word.trim().toLowerCase();
   const match = [...INITIAL_WORDS, ...library].find(
@@ -71,8 +122,13 @@ const fromLibrary = (word: Word, library: Word[]): EnrichedContent | null => {
   };
 };
 
-const fromGemini = async (word: Word, apiKey: string): Promise<EnrichedContent | null> => {
-  const prompt = `你是台灣的英文老師。請為英文單字「${word.word}」(${word.partOfSpeech}，中文：${word.meaning}) 產生學習卡內容，只回傳 JSON：
+const fromGemini = async (
+  word: Word,
+  apiKey: string
+): Promise<EnrichedContent | { misspelled: true; suggestion: string } | null> => {
+  const prompt = `你是台灣的英文老師。請為英文單字「${word.word}」(${word.partOfSpeech}，中文：${word.meaning}) 產生學習卡內容。
+如果「${word.word}」不是正確拼寫的英文單字或片語（例如打錯字），請只回傳 {"misspelled": true, "suggestion": "最可能的正確拼法"}。
+否則只回傳 JSON（例句必須原樣使用「${word.word}」這個拼法或它的詞形變化，不可改用其他單字）：
 {
   "phonetic": "KK 或 IPA 音標，例如 /pɝsəˈvɪr/",
   "exampleEn": "一句自然、道地、15~25 字的英文例句，必須使用此單字並符合上述詞性與中文意思",
@@ -95,7 +151,11 @@ const fromGemini = async (word: Word, apiKey: string): Promise<EnrichedContent |
       const data = await res.json();
       const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
       const parsed = JSON.parse(text.replace(/^```(json)?|```$/g, '').trim());
-      if (parsed?.exampleEn && parsed?.confusionNotes) {
+      if (parsed?.misspelled && typeof parsed.suggestion === 'string' && parsed.suggestion.trim()) {
+        const suggestion = parsed.suggestion.trim();
+        if (suggestion.toLowerCase() !== word.word.trim().toLowerCase()) return { misspelled: true, suggestion };
+      }
+      if (parsed?.exampleEn && parsed?.confusionNotes && sentenceUsesWord(String(parsed.exampleEn), word.word)) {
         return {
           phonetic: parsed.phonetic || undefined,
           exampleEn: String(parsed.exampleEn).trim(),
@@ -243,7 +303,9 @@ const fromWiktionary = async (word: string): Promise<string | undefined> => {
       .flatMap((d: any) => [...(d?.parsedExamples || []).map((e: any) => e?.example), ...(d?.examples || [])])
       .filter(Boolean)
       .map((e: string) => e.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
-    return examples.find(e => wordCount(e) >= 6 && wordCount(e) <= 28 && /[.!?]$/.test(e));
+    return examples.find(
+      e => wordCount(e) >= 6 && wordCount(e) <= 28 && /[.!?]$/.test(e) && sentenceUsesWord(e, word)
+    );
   } catch {
     return undefined;
   }
@@ -262,15 +324,8 @@ const fromTatoeba = async (word: string): Promise<{ en: string; zh?: string } | 
         zh: (s?.translations || []).flat().find((t: any) => t?.lang === 'cmn')?.text as string | undefined,
       }))
       .filter((s: { en: string }) => wordCount(s.en) >= 6 && wordCount(s.en) <= 22);
-    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const exact = new RegExp(`\\b${escaped}(s|es|d|ed|ing|ly)?\\b`, 'i');
     const pick = (fn: (s: { en: string; zh?: string }) => boolean) => candidates.find(fn);
-    return (
-      pick(s => exact.test(s.en) && !!s.zh) ||
-      pick(s => exact.test(s.en)) ||
-      pick(s => !!s.zh) ||
-      candidates[0]
-    );
+    return pick(s => sentenceUsesWord(s.en, word) && !!s.zh) || pick(s => sentenceUsesWord(s.en, word));
   } catch {
     return undefined;
   }
@@ -289,11 +344,10 @@ const fromDictionary = async (word: Word, library: Word[]): Promise<EnrichedCont
   const meanings: any[] = entries.flatMap(e => e?.meanings || []);
   const ordered = [...meanings.filter(m => m.partOfSpeech === wantedPos), ...meanings.filter(m => m.partOfSpeech !== wantedPos)];
 
-  const stem = word.word.trim().toLowerCase().slice(0, Math.max(3, word.word.trim().length - 2));
   const examples: string[] = ordered
     .flatMap(m => (m.definitions || []).map((d: any) => d.example as string))
     .filter((ex): ex is string => !!ex && ex.length >= 20 && ex.length <= 180);
-  let example = examples.find(ex => ex.toLowerCase().includes(stem) && wordCount(ex) >= 5);
+  let example = examples.find(ex => sentenceUsesWord(ex, word.word) && wordCount(ex) >= 5);
   let fallbackZh: string | undefined;
   if (!example) example = await fromWiktionary(word.word.trim());
   if (!example) {
@@ -301,7 +355,6 @@ const fromDictionary = async (word: Word, library: Word[]): Promise<EnrichedCont
     example = tatoeba?.en;
     fallbackZh = tatoeba?.zh;
   }
-  if (!example) example = examples[0];
 
   const synonyms = Array.from(
     new Set<string>(ordered.flatMap(m => [...(m.synonyms || []), ...(m.definitions || []).flatMap((d: any) => d.synonyms || [])]))
@@ -352,13 +405,46 @@ const fromDictionary = async (word: Word, library: Word[]): Promise<EnrichedCont
  * Fill in example sentence, translation and concept notes for a word:
  * built-in library first, then Gemini (if a key is configured), then free dictionary APIs.
  */
-export const enrichWord = async (word: Word, library: Word[]): Promise<Partial<Word> | null> => {
-  const result =
-    fromLibrary(word, library) ||
-    (getGeminiKey() ? await fromGemini(word, getGeminiKey()) : null) ||
-    (await fromDictionary(word, library));
+export interface EnrichResult {
+  patch: Partial<Word> | null;
+  /** Likely correct spelling when the word looks like a typo; no content is generated in that case. */
+  suggestion?: string;
+}
 
-  if (!result) return null;
+const dictionaryKnows = async (word: string): Promise<boolean | null> => {
+  try {
+    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+    if (res.status === 404) return false;
+    return res.ok ? true : null;
+  } catch {
+    return null;
+  }
+};
+
+export const enrichWord = async (
+  word: Word,
+  library: Word[],
+  options: { skipSpellCheck?: boolean } = {}
+): Promise<EnrichResult> => {
+  let result: EnrichedContent | null = fromLibrary(word, library);
+
+  if (!result) {
+    const local = options.skipSpellCheck ? null : findSpellingSuggestion(word.word, library);
+    if (getGeminiKey()) {
+      const ai = await fromGemini(word, getGeminiKey());
+      if (ai && 'misspelled' in ai) {
+        if (!options.skipSpellCheck) return { patch: null, suggestion: ai.suggestion };
+      } else {
+        result = ai;
+      }
+    }
+    if (!result && local && (await dictionaryKnows(word.word.trim())) !== true) {
+      return { patch: null, suggestion: local };
+    }
+    if (!result) result = await fromDictionary(word, library);
+  }
+
+  if (!result) return { patch: null };
   const [exampleZh, confusionNotes] = await Promise.all([
     toTraditional(result.exampleZh),
     toTraditional(result.confusionNotes),
@@ -369,5 +455,5 @@ export const enrichWord = async (word: Word, library: Word[]): Promise<Partial<W
     confusionNotes,
   };
   if (result.phonetic && isPlaceholderPhonetic(word)) patch.phonetic = result.phonetic;
-  return patch;
+  return { patch };
 };

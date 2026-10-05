@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Word, WordCategory } from '../types';
 import { speakEnglish } from '../utils/tts';
 import { getVerbForms, getNounForms, detectPartOfSpeech } from '../utils/englishGrammar';
@@ -9,7 +9,13 @@ import {
   downloadFile,
   parseImportedContent,
 } from '../utils/wordImportExport';
-import { enrichWord, getGeminiKey, isTemplateContent, setGeminiKey } from '../utils/wordEnrichment';
+import {
+  enrichWord,
+  findSpellingSuggestion,
+  getGeminiKey,
+  isTemplateContent,
+  setGeminiKey,
+} from '../utils/wordEnrichment';
 import { isBankWordId } from '../utils/wordBank';
 import {
   Search,
@@ -64,29 +70,49 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
 }) => {
   const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
   const [failedEnrichIds, setFailedEnrichIds] = useState<Set<string>>(new Set());
+  const [spellingSuggestions, setSpellingSuggestions] = useState<Record<string, string>>({});
   const [isBatchEnriching, setIsBatchEnriching] = useState(false);
   const [hasGeminiKey, setHasGeminiKey] = useState(() => !!getGeminiKey());
   const wordsRef = useRef(words);
   wordsRef.current = words;
 
-  const runEnrich = async (target: Word) => {
+  const runEnrich = async (target: Word, options: { skipSpellCheck?: boolean } = {}) => {
     setEnrichingIds(prev => new Set(prev).add(target.id));
     setFailedEnrichIds(prev => {
       const next = new Set(prev);
       next.delete(target.id);
       return next;
     });
-    const patch = await enrichWord(target, wordsRef.current);
+    setSpellingSuggestions(prev => {
+      if (!(target.id in prev)) return prev;
+      const { [target.id]: _, ...rest } = prev;
+      return rest;
+    });
+    const { patch, suggestion } = await enrichWord(target, wordsRef.current, options);
     if (patch) {
       onPatchWord?.(target.id, patch);
     } else {
       setFailedEnrichIds(prev => new Set(prev).add(target.id));
+      if (suggestion) setSpellingSuggestions(prev => ({ ...prev, [target.id]: suggestion }));
     }
     setEnrichingIds(prev => {
       const next = new Set(prev);
       next.delete(target.id);
       return next;
     });
+  };
+
+  const handleFixSpelling = (target: Word, corrected: string) => {
+    const fixed: Word = {
+      ...target,
+      word: corrected,
+      phonetic: `/${corrected.toLowerCase()}/`,
+      exampleEn: '',
+      exampleZh: '',
+      confusionNotes: '',
+    };
+    onUpdateWord?.(fixed);
+    runEnrich(fixed);
   };
 
   const runBatchEnrich = async (targets: Word[]) => {
@@ -161,6 +187,11 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
   const existingWordMatches = cleanInputWord
     ? words.filter(w => w.word.toLowerCase() === cleanInputWord)
     : [];
+
+  const addSpellingSuggestion = useMemo(
+    () => (showAddModal && cleanInputWord ? findSpellingSuggestion(cleanInputWord, words) : null),
+    [showAddModal, cleanInputWord, words]
+  );
 
   const exactMeaningMatch = existingWordMatches.find(w => {
     if (!cleanInputMeaning) return false;
@@ -820,9 +851,27 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                         <Sparkles className="h-3.5 w-3.5" />
                         補全例句與解析
                       </button>
-                      {failedEnrichIds.has(w.id) && (
+                      {failedEnrichIds.has(w.id) && !spellingSuggestions[w.id] && (
                         <span className="text-xs text-rose-300">
                           查無資料或網路不通{hasGeminiKey ? '' : '，可設定 AI 金鑰後再試'}
+                        </span>
+                      )}
+                      {spellingSuggestions[w.id] && (
+                        <span className="flex flex-wrap items-center gap-1.5 text-xs text-amber-200">
+                          「{w.word}」可能拼錯了，是不是
+                          <b className="font-mono text-white">{spellingSuggestions[w.id]}</b>？
+                          <button
+                            onClick={() => handleFixSpelling(w, spellingSuggestions[w.id])}
+                            className="rounded-md bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 px-2 py-0.5 font-bold text-amber-100 cursor-pointer"
+                          >
+                            改成 {spellingSuggestions[w.id]}
+                          </button>
+                          <button
+                            onClick={() => runEnrich(w, { skipSpellCheck: true })}
+                            className="text-slate-400 hover:text-slate-200 underline cursor-pointer"
+                          >
+                            拼字沒錯，繼續補全
+                          </button>
                         </span>
                       )}
                     </div>
@@ -945,6 +994,23 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                   </select>
                 </div>
               </div>
+
+              {addSpellingSuggestion && (
+                <div className="flex flex-wrap items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                  <span>
+                    可能拼錯了，是不是 <b className="font-mono text-white">{addSpellingSuggestion}</b>？
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setNewWord(prev => ({ ...prev, word: addSpellingSuggestion }))}
+                    className="rounded-md bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 px-2 py-0.5 font-bold text-amber-100 cursor-pointer"
+                  >
+                    改成 {addSpellingSuggestion}
+                  </button>
+                  <span className="text-[10px] text-slate-400">拼字正確可忽略</span>
+                </div>
+              )}
 
               {/* Intelligent POS Auto-Detection Banner */}
               {detectedPOS && (
