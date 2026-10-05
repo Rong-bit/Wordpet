@@ -17,6 +17,7 @@ import {
   setGeminiKey,
 } from '../utils/wordEnrichment';
 import { isBankWordId } from '../utils/wordBank';
+import { addCategoryPatch, isInCategory, removeCategoryPatch } from '../utils/wordCategory';
 import {
   Search,
   Plus,
@@ -301,6 +302,7 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
       partOfSpeech: editForm.partOfSpeech,
       meaning: trimmedMeaning,
       category: editForm.category,
+      extraCategories: editingWord.extraCategories?.filter(c => c !== editForm.category),
       confusionNotes,
       exampleEn,
       exampleZh,
@@ -340,7 +342,7 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
   const handleExecuteExport = () => {
     let targetWords = words;
     if (exportScope === 'custom') {
-      targetWords = words.filter(w => w.category === 'custom');
+      targetWords = words.filter(w => isInCategory(w, 'custom'));
     } else if (exportScope === 'filtered') {
       targetWords = filteredWords;
     }
@@ -401,6 +403,7 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
     if (parsedImportWords.length === 0) return;
     const existingMap = new Map(words.map(w => [w.word.toLowerCase(), w]));
     const duplicates = parsedImportWords.filter(w => existingMap.has(w.word.toLowerCase()));
+    const linkedCount = duplicates.filter(w => !isInCategory(existingMap.get(w.word.toLowerCase())!, w.category)).length;
     onImportWords?.(parsedImportWords);
     const addedCount = parsedImportWords.length - duplicates.length;
     runBatchEnrich(
@@ -410,7 +413,10 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
     setImportText('');
     setParsedImportWords([]);
     if (duplicates.length > 0) {
-      setImportSuccessMsg(`🎉 成功匯入 ${addedCount} 個新單字！（已自動略過 ${duplicates.length} 個在庫重複單字）`);
+      const skippedCount = duplicates.length - linkedCount;
+      setImportSuccessMsg(
+        `🎉 成功匯入 ${addedCount} 個新單字！（${linkedCount} 個已存在單字已同時加入「${categoryLabels[importCategory] || importCategory}」，原分類保留${skippedCount > 0 ? `；${skippedCount} 個已在此分類中而略過` : ''}）`
+      );
     } else {
       setImportSuccessMsg(`🎉 成功匯入 ${addedCount} 個單字至「${categoryLabels[importCategory] || '自訂單字庫'}」！`);
     }
@@ -430,7 +436,7 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
 
     // Category filter
     const matchesCategory =
-      selectedCategory === 'all' || w.category === selectedCategory;
+      selectedCategory === 'all' || isInCategory(w, selectedCategory);
 
     const matchesLevel = !levelFilter || w.level === levelFilter;
 
@@ -452,11 +458,31 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
   const availableLevels =
     selectedCategory === 'all'
       ? []
-      : Array.from(new Set(words.filter(w => w.category === selectedCategory).map(w => w.level))).sort((a, b) => a - b);
+      : Array.from(new Set(words.filter(w => isInCategory(w, selectedCategory)).map(w => w.level))).sort((a, b) => a - b);
 
   const templateWords = filteredWords
     .filter(w => isTemplateContent(w) && !failedEnrichIds.has(w.id))
     .slice(0, MAX_BATCH_ENRICH);
+
+  const resetNewWordForm = () =>
+    setNewWord({
+      word: '',
+      partOfSpeech: 'v.',
+      meaning: '',
+      category: 'custom',
+    });
+
+  // 已存在的單字不重複建立，而是同時歸入目標分類（原分類保留、複習進度共用）
+  const linkExistingWord = (target: Word) => {
+    const category = newWord.category;
+    if (!isInCategory(target, category)) {
+      onPatchWord?.(target.id, addCategoryPatch(target, category));
+    }
+    setShowAddModal(false);
+    setSelectedCategory(category);
+    setSearchTerm(target.word);
+    resetNewWordForm();
+  };
 
   const handleCreateWord = (e: React.FormEvent) => {
     e.preventDefault();
@@ -464,16 +490,9 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
     const trimmedMeaning = newWord.meaning.trim();
     if (!trimmedWord || !trimmedMeaning) return;
 
-    // Duplicate Check Warning Confirmation
     if (exactMeaningMatch) {
-      const confirmAdd = window.confirm(
-        `【重複單字提醒】\n\n單字庫中已收錄「${exactMeaningMatch.word} (${exactMeaningMatch.meaning})」[分類：${categoryLabels[exactMeaningMatch.category] || exactMeaningMatch.category}]，中文釋義相同！\n\n您確定仍要重複建立一筆新單字嗎？\n（點擊「取消」將帶您前往查看現有單字，避免重複學習與分散複習次數）`
-      );
-      if (!confirmAdd) {
-        setShowAddModal(false);
-        setSearchTerm(exactMeaningMatch.word);
-        return;
-      }
+      linkExistingWord(exactMeaningMatch);
+      return;
     }
 
     let confusionNotes = '';
@@ -522,12 +541,7 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
     onAddWord(created);
     runEnrich(created);
     setShowAddModal(false);
-    setNewWord({
-      word: '',
-      partOfSpeech: 'v.',
-      meaning: '',
-      category: 'custom',
-    });
+    resetNewWordForm();
   };
 
   const categories = [
@@ -798,6 +812,23 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                       <span className="text-slate-400">{w.partOfSpeech}</span>
                       <span className="mx-1.5">·</span>
                       {categoryLabels[w.category] || w.category}
+                      {w.extraCategories
+                        ?.filter(c => c !== w.category)
+                        .map(c => (
+                          <span
+                            key={c}
+                            className="ml-1.5 inline-flex items-center gap-0.5 rounded bg-indigo-500/15 px-1.5 text-[11px] text-indigo-300"
+                          >
+                            +{categoryLabels[c] || c}
+                            <button
+                              onClick={() => onPatchWord?.(w.id, removeCategoryPatch(w, c))}
+                              className="px-0.5 hover:text-white cursor-pointer"
+                              title={`從「${categoryLabels[c] || c}」移除（原分類保留）`}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
                     </p>
                   </div>
 
@@ -942,7 +973,7 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
       {/* ADD CUSTOM WORD MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 p-5 sm:p-6 shadow-2xl">
+          <div className="relative w-full max-w-lg max-h-[90dvh] overflow-y-auto overflow-x-hidden rounded-3xl border border-slate-700 bg-slate-900 p-5 sm:p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
               <h3 className="text-lg font-bold font-fun text-white flex items-center gap-2">
                 <Plus className="h-5 w-5 text-indigo-400" />
@@ -1073,6 +1104,11 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                           （收錄於：{categoryLabels[exactMeaningMatch.category] || exactMeaningMatch.category}）
                         </span>
                       </div>
+                      <div className="text-amber-100/90 mt-1.5 text-[11px] leading-relaxed">
+                        {isInCategory(exactMeaningMatch, newWord.category)
+                          ? `此單字已在「${categoryLabels[newWord.category]}」中，不需重複新增。`
+                          : `送出後不會建立重複單字，而是把這筆單字同時加入「${categoryLabels[newWord.category]}」，原分類保留、複習進度共用。`}
+                      </div>
                       <div className="mt-2.5 flex flex-wrap items-center gap-2">
                         <button
                           type="button"
@@ -1113,13 +1149,25 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                       <div className="text-[11px] text-slate-300 mt-0.5">
                         現有單字：
                         {existingWordMatches.map((m, idx) => (
-                          <span key={idx} className="mr-2">
-                            <b className="text-white font-mono">{m.word}</b> [{m.partOfSpeech}]「{m.meaning}」
+                          <span key={idx} className="mr-2 inline-flex flex-wrap items-center gap-1">
+                            <span>
+                              <b className="text-white font-mono">{m.word}</b> [{m.partOfSpeech}]「{m.meaning}」
+                              <span className="text-slate-400">（{categoryLabels[m.category] || m.category}）</span>
+                            </span>
+                            {!isInCategory(m, newWord.category) && (
+                              <button
+                                type="button"
+                                onClick={() => linkExistingWord(m)}
+                                className="rounded-md bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 px-1.5 py-0.5 text-[10px] font-bold text-indigo-200 cursor-pointer"
+                              >
+                                加入「{categoryLabels[newWord.category]}」
+                              </button>
+                            )}
                           </span>
                         ))}
                       </div>
                       <p className="text-[10px] text-slate-400 mt-1">
-                        若您要建立多重詞性或延伸釋義，可繼續建立新單字！
+                        可直接把現有單字加入「{categoryLabels[newWord.category]}」（原分類保留），或繼續建立新釋義的單字。
                       </p>
                     </div>
                   </div>
@@ -1227,7 +1275,11 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                       : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30'
                   }`}
                 >
-                  確認建立加入字庫
+                  {!exactMeaningMatch
+                    ? '確認建立加入字庫'
+                    : isInCategory(exactMeaningMatch, newWord.category)
+                      ? '前往查看該單字'
+                      : `加入「${categoryLabels[newWord.category]}」（保留原分類）`}
                 </button>
               </div>
             </form>
@@ -1238,7 +1290,7 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
       {/* EDIT WORD MODAL */}
       {editingWord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-indigo-500/40 bg-slate-900 p-5 sm:p-6 shadow-2xl">
+          <div className="relative w-full max-w-lg max-h-[90dvh] overflow-y-auto overflow-x-hidden rounded-3xl border border-indigo-500/40 bg-slate-900 p-5 sm:p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
               <h3 className="text-lg font-bold font-fun text-white flex items-center gap-2">
                 <Pencil className="h-5 w-5 text-amber-400" />
@@ -1470,7 +1522,7 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
       {/* EXPORT WORDS MODAL */}
       {showExportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 p-5 sm:p-6 shadow-2xl">
+          <div className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto overflow-x-hidden rounded-3xl border border-slate-700 bg-slate-900 p-5 sm:p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
               <h3 className="text-lg font-bold font-fun text-white flex items-center gap-2">
                 <Download className="h-5 w-5 text-sky-400" />
@@ -1507,7 +1559,7 @@ export const WordLibrary: React.FC<WordLibraryProps> = ({
                       </div>
                     </div>
                     <span className="font-mono text-sky-400 font-bold">
-                      {words.filter(w => w.category === 'custom').length} 字
+                      {words.filter(w => isInCategory(w, 'custom')).length} 字
                     </span>
                   </label>
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Word, Pet, Item, DailyQuest, Achievement, UserProfile } from './types';
 import { loadAppState, saveAppState, AppState } from './utils/storage';
 import { loadAllWordBanks } from './utils/wordBank';
+import { addCategoryPatch, getWordCategories, isInCategory } from './utils/wordCategory';
 import { INITIAL_PET, INITIAL_ITEMS } from './data/bestiary';
 import { applyExpGain, ExpGainResult } from './utils/evolution';
 import { EvolutionCelebrationModal } from './components/EvolutionCelebrationModal';
@@ -110,7 +111,9 @@ export default function App() {
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     allWords.forEach(w => {
-      counts[w.category] = (counts[w.category] || 0) + 1;
+      getWordCategories(w).forEach(c => {
+        counts[c] = (counts[c] || 0) + 1;
+      });
     });
     return counts;
   }, [allWords]);
@@ -123,7 +126,7 @@ export default function App() {
 
   // Current category words on Home page
   const homeCategoryWords = useMemo(
-    () => (homeQuizCategory === 'all' ? allWords : allWords.filter(w => w.category === homeQuizCategory)),
+    () => (homeQuizCategory === 'all' ? allWords : allWords.filter(w => isInCategory(w, homeQuizCategory))),
     [allWords, homeQuizCategory]
   );
 
@@ -455,17 +458,25 @@ export default function App() {
   // Batch Import Words (批量匯入單字)
   const handleImportWords = (importedWords: Word[]) => {
     setAppState(prev => {
-      const existingMap = new Map(prev.words.map(w => [w.word.toLowerCase(), w]));
+      const existingMap = new Map(allWordsRef.current.map(w => [w.word.toLowerCase(), w]));
+      prev.words.forEach(w => existingMap.set(w.word.toLowerCase(), w));
       const newItems: Word[] = [];
+      let words = prev.words;
       importedWords.forEach(w => {
-        if (!existingMap.has(w.word.toLowerCase())) {
-          existingMap.set(w.word.toLowerCase(), w);
+        const key = w.word.toLowerCase();
+        const existing = existingMap.get(key);
+        if (!existing) {
+          existingMap.set(key, w);
           newItems.push(w);
+        } else if (!isInCategory(existing, w.category)) {
+          const linked = { ...existing, ...addCategoryPatch(existing, w.category) };
+          existingMap.set(key, linked);
+          words = upsertWord(words, existing.id, () => linked);
         }
       });
       return {
         ...prev,
-        words: [...newItems, ...prev.words],
+        words: [...newItems, ...words],
       };
     });
   };

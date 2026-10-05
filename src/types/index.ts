@@ -12,6 +12,7 @@ export interface Word {
   exampleZh: string;
   confusionNotes: string; // 辨析與常考陷阱 / 記憶秘訣
   category: WordCategory;
+  extraCategories?: WordCategory[]; // 同時歸屬的其他分類（共用同一份複習進度）
   level: number; // 1 to 5
   // SRS properties
   repetition: number;
