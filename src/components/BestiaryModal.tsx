@@ -357,7 +357,7 @@ const BASE_SHOWCASE: ShowcasePetItem[] = [
     evolutionPower: 100,
     specialTrait: '孵化衝刺：每完成 5 個單字複習，裂痕加深！',
     talent: '【語彙破殼】',
-    talentDesc: '完成初始學習任務即可隨機破殼誕生火、冰、森任一神獸幼體！',
+    talentDesc: `完成初始學習任務即可隨機破殼，誕生 ${HATCH_POOL.length} 種神獸幼體之一！`,
     lore: '沈睡在語意矩陣中心的起源星蛋，表面烙印著古老單字符文。',
     elementIcon: <Sparkles className="h-4 w-4 text-emerald-400" />,
   },

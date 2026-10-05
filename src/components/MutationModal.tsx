@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pet, Item } from '../types';
 import { PetCanvas } from './PetCanvas';
 import { applyShinyPalette, evolveOneStage, getNextEvolution, HATCH_LEVEL } from '../utils/evolution';
+import { HATCH_POOL } from '../data/petSpecies';
 
 const SHINY_CORE_ID = 'item_mutation_core';
 import { soundFx } from '../utils/sound';
@@ -137,7 +138,7 @@ export const MutationModal: React.FC<MutationModalProps> = ({
                       </div>
                     )}
                     <p className="text-xs text-purple-300 mt-1 font-semibold">
-                      {preview ? preview.name : pet.stage === 'egg' ? '11 種之一' : '已是最終型態'}
+                      {preview ? preview.name : pet.stage === 'egg' ? `${HATCH_POOL.length} 種之一` : '已是最終型態'}
                       {isShinyCore ? '・異色' : ''}
                     </p>
                   </div>
