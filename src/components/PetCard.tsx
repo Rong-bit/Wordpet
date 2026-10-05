@@ -381,7 +381,7 @@ export const PetCard: React.FC<PetCardProps> = ({
       {/* --- FULLSCREEN IMMERSIVE SANCTUARY MODAL --- */}
       {isExpandedStage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/90 backdrop-blur-2xl animate-in fade-in duration-200">
-          <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-amber-500/40 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 p-6 shadow-2xl flex flex-col items-center">
+          <div className="relative w-full max-w-2xl max-h-[90dvh] overflow-y-auto overflow-x-hidden rounded-3xl border border-amber-500/40 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 p-6 shadow-2xl flex flex-col items-center">
             {/* Ambient Background Aura */}
             <div
               className="absolute inset-0 opacity-25 blur-3xl pointer-events-none"

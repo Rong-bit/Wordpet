@@ -70,7 +70,7 @@ export const MutationModal: React.FC<MutationModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-purple-500/40 bg-slate-900 p-6 shadow-2xl">
+      <div className="relative w-full max-w-lg max-h-[90dvh] overflow-y-auto overflow-x-hidden rounded-3xl border border-purple-500/40 bg-slate-900 p-6 shadow-2xl">
         {/* Glow backdrop */}
         <div className="pointer-events-none absolute -top-20 -right-20 h-64 w-64 rounded-full bg-purple-600/20 blur-3xl" />
 

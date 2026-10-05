@@ -22,7 +22,7 @@ export const EvolutionCelebrationModal: React.FC<EvolutionCelebrationModalProps>
 
   return (
     <div className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-amber-500/40 bg-slate-900 p-6 text-center shadow-2xl">
+      <div className="relative w-full max-w-sm max-h-[90dvh] overflow-y-auto overflow-x-hidden rounded-3xl border border-amber-500/40 bg-slate-900 p-6 text-center shadow-2xl">
         <div className="pointer-events-none absolute -top-20 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-amber-400/20 blur-3xl" />
 
         <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 px-3 py-1 text-xs font-bold text-amber-300">
