@@ -125,26 +125,42 @@ export const speakEnglish = (
   if (wordCount <= 3 && !/[，。！？\n]/.test(cleanText)) {
     try {
       // type=1 is British (en-GB), type=2 is American (en-US)
-      const audioType = accent === 'en-GB' ? 1 : 2;
-      const audioUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(cleanText)}&type=${audioType}`;
-      
-      const audio = new Audio(audioUrl);
+      // 有道部分單字只缺其中一種口音（例如 rely 的美式音檔會回 500），失敗時先改用另一種口音
+      const audioTypes = accent === 'en-GB' ? [1, 2] : [2, 1];
+      const audioUrls = audioTypes.map(
+        t => `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(cleanText)}&type=${t}`
+      );
+
+      // iOS 只允許在點擊當下啟動播放；沿用同一個 audio 元件換音源，才能在非同步失敗後繼續播放
+      const audio = new Audio();
       currentAudio = audio;
+      const playbackRate = Math.max(0.75, Math.min(1.25, rate));
 
-      // Adjust playback speed if needed
-      audio.playbackRate = Math.max(0.75, Math.min(1.25, rate));
-
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          // If browser blocked audio autoplay or network error, fallback to Web Speech
-          speakViaWebSpeech(cleanText, accent, rate);
-        });
-      }
-
-      audio.onerror = () => {
+      let fellBack = false;
+      const fallbackToWebSpeech = () => {
+        if (fellBack || currentAudio !== audio) return;
+        fellBack = true;
         speakViaWebSpeech(cleanText, accent, rate);
       };
+
+      let nextIndex = 0;
+      const playNextSource = () => {
+        if (currentAudio !== audio) return;
+        if (nextIndex >= audioUrls.length) {
+          fallbackToWebSpeech();
+          return;
+        }
+        audio.src = audioUrls[nextIndex++];
+        audio.defaultPlaybackRate = playbackRate;
+        audio.playbackRate = playbackRate;
+        audio.play()?.catch(err => {
+          // 載入失敗交給 onerror 換下一個音源；被瀏覽器擋下自動播放才直接改用 Web Speech
+          if (err?.name === 'NotAllowedError') fallbackToWebSpeech();
+        });
+      };
+
+      audio.onerror = playNextSource;
+      playNextSource();
 
       return;
     } catch {
