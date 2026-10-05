@@ -11,7 +11,8 @@ export type PetArchetype =
   | 'bunny'
   | 'penguin'
   | 'slime'
-  | 'panda';
+  | 'panda'
+  | 'redpanda';
 
 const SPECIES_ARCHETYPE: Record<string, PetArchetype> = {
   p_fire_dragon_1: 'dragon',
@@ -31,6 +32,7 @@ const SPECIES_ARCHETYPE: Record<string, PetArchetype> = {
   p_frost_penguin_1: 'penguin',
   p_void_slime_1: 'slime',
   p_nature_panda_1: 'panda',
+  p_flame_redpanda_1: 'redpanda',
 };
 
 const ELEMENT_ARCHETYPE: Record<PetElement, PetArchetype> = {
@@ -192,6 +194,19 @@ export const HATCH_POOL: HatchSpecies[] = [
     },
   },
   {
+    speciesId: 'p_flame_redpanda_1',
+    name: '焰尾小貓熊',
+    title: '暖呼呼楓葉寶寶',
+    element: 'flame',
+    rarity: 'rare',
+    weight: 2,
+    trait: '暖心陪伴：每日首次複習寵物心情與飽食額外 +10！',
+    genes: {
+      element: 'flame', pattern: 'plain', horns: 'none', wings: 'none', particle: 'fire',
+      primaryColor: '#F97316', secondaryColor: '#9A3412', glowColor: '#FED7AA',
+    },
+  },
+  {
     speciesId: 'p_radiant_pony_1',
     name: '彩虹小獨角獸',
     title: '夢幻彩虹小馬',
@@ -346,6 +361,17 @@ export const EVOLUTION_LINES: EvolutionLine[] = [
         trait: '量子備份：遺忘的單字自動加入複習', description: '裝上推進機翼的守衛機甲，能掃描並修復記憶漏洞。' },
       ultimate: { speciesId: 'p_cyber_mecha_ultimate', name: '量子神經機械龍', title: '超維度矩陣支配者', iconSymbol: '🤖',
         trait: '量子運算：複習效率提高 30%', description: '超維度機械神獸，全身環繞量子矩陣粒子。' },
+    },
+  },
+  {
+    baby: 'p_flame_redpanda_1', archetype: 'redpanda', element: 'flame', adultWings: 'none',
+    forms: {
+      juvenile: { speciesId: 'p_flame_redpanda_j', name: '楓火貓熊', title: '楓林小旅人', iconSymbol: '🍁',
+        trait: '楓葉收集：完成測驗有機率額外獲得金幣', description: '尾巴的環紋開始泛起火光，喜歡在楓樹間跳來跳去收集單字。' },
+      adult: { speciesId: 'p_flame_redpanda_a', name: '炎環守護貓熊', title: '秋焰森林守衛', iconSymbol: '🔥',
+        trait: '炎環守護：連勝 7 天後經驗值 +15%', description: '尾巴燃起溫暖的火環，守護主人的學習節奏不被打斷。' },
+      ultimate: { speciesId: 'p_flame_redpanda_u', name: '九環焰尾貓熊仙', title: '楓焰仙境之主', iconSymbol: '🏮',
+        trait: '焰尾燈火：每日自動點亮 1 個待複習單字並給予雙倍經驗', description: '九道火環的尾巴宛如燈籠，照亮通往記憶仙境的道路。' },
     },
   },
   {

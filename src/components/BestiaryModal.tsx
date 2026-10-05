@@ -757,7 +757,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({
             }`}
           >
             <Crown className="h-4 w-4" />
-            👑 立體模型全覽 (12 隻神獸隨心點選)
+            👑 立體模型全覽（{HATCH_POOL.length} 種神獸・{ALL_SHOWCASE_PETS.length} 個型態）
           </button>
           <button
             type="button"

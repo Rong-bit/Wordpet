@@ -33,6 +33,7 @@ export const HEAD_TOP: Record<PetArchetype, number> = {
   penguin: 66,
   slime: 56,
   panda: 58,
+  redpanda: 58,
 };
 
 const INK = '#1E1B4B';
@@ -579,6 +580,69 @@ export const SpeciesArt: React.FC<SpeciesArtProps> = ({ archetype, stage, palett
             blushY={121}
             line={black}
           />
+        </g>
+      );
+    }
+
+    case 'redpanda': {
+      const dark = p.secondary;
+      const tailPath = grown
+        ? 'M 118,160 C 164,174 184,136 172,100 C 167,86 152,82 143,92 C 158,108 158,140 118,146 Z'
+        : 'M 120,160 C 158,170 174,140 166,110 C 162,98 150,94 143,102 C 153,114 152,138 120,146 Z';
+      const rings = grown ? [118, 132, 146, 160, 174] : [126, 142, 158];
+      const maple =
+        'M 0,-11 L 3,-5 L 9,-7 L 6,-1 L 11,1 L 5,4 L 6,10 L 0,6 L -6,10 L -5,4 L -11,1 L -6,-1 L -9,-7 L -3,-5 Z';
+      return (
+        <g>
+          <defs>
+            <clipPath id={`rp-tail-${grown ? 'g' : 'b'}`}>
+              <path d={tailPath} />
+            </clipPath>
+          </defs>
+          <g className="pet-wag">
+            <path d={tailPath} fill={p.fill} {...sw} />
+            <g clipPath={`url(#rp-tail-${grown ? 'g' : 'b'})`}>
+              {rings.map(x => (
+                <line
+                  key={x}
+                  x1={x - 18}
+                  y1={176}
+                  x2={x + 22}
+                  y2={84}
+                  stroke={ultimate ? p.glow : dark}
+                  strokeWidth={7}
+                  opacity={ultimate ? 0.9 : 0.75}
+                />
+              ))}
+            </g>
+            <path d={tailPath} fill="none" {...sw} />
+            {ultimate && (
+              <path
+                d="M 166,96 Q 160,80 170,66 Q 172,78 180,80 Q 182,92 172,100 Z"
+                fill="#FBBF24"
+                stroke="#EA580C"
+                strokeWidth={2}
+                strokeLinejoin="round"
+              />
+            )}
+          </g>
+          <ChibiBody p={p} stage={stage} arm={dark} foot={dark} belly={dark} />
+          <path d="M 58,82 Q 52,52 72,50 Q 90,54 90,66 Z" fill={p.fill} {...sw} />
+          <path d="M 63,76 Q 60,58 72,57 Q 83,60 83,66 Z" fill="#FFFFFF" />
+          <path d="M 142,82 Q 148,52 128,50 Q 110,54 110,66 Z" fill={p.fill} {...sw} />
+          <path d="M 137,76 Q 140,58 128,57 Q 117,60 117,66 Z" fill="#FFFFFF" />
+          <Head p={p} rx={44} ry={41} />
+          {stage !== 'baby' && (
+            <path d={maple} transform="translate(118 64) rotate(18) scale(1.1)" fill="#DC2626" stroke="#7F1D1D" strokeWidth={1.4} strokeLinejoin="round" />
+          )}
+          <ellipse cx={84} cy={88} rx={6} ry={4} fill="#FFFFFF" />
+          <ellipse cx={116} cy={88} rx={6} ry={4} fill="#FFFFFF" />
+          <ellipse cx={69} cy={114} rx={13} ry={11} fill="#FFFFFF" />
+          <ellipse cx={131} cy={114} rx={13} ry={11} fill="#FFFFFF" />
+          <ellipse cx={100} cy={121} rx={18} ry={12} fill="#FFFFFF" />
+          <path d="M 82,112 Q 80,124 86,132 M 118,112 Q 120,124 114,132" fill="none" stroke={dark} strokeWidth={3} strokeLinecap="round" opacity={0.55} />
+          <ellipse cx={100} cy={115} rx={5} ry={3.4} fill={p.line} />
+          <Face mood={mood} mouth="cat" mouthY={120} eyeY={102} blushY={118} line={p.line} />
         </g>
       );
     }
