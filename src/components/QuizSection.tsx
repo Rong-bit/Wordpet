@@ -457,7 +457,7 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
             </div>
             {cloze ? (
               <>
-                <p className="text-xl sm:text-2xl font-semibold text-white leading-relaxed tracking-wide">
+                <p className="text-xl sm:text-2xl font-semibold text-white leading-relaxed tracking-wide font-mono">
                   {cloze.clozeSentence}
                 </p>
                 <p className="mt-4 text-2xl sm:text-3xl font-black text-amber-300 tracking-wide">
