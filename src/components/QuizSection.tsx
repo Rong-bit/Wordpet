@@ -3,7 +3,15 @@ import { Word, Pet, Item } from '../types';
 import { calculateNextReview } from '../utils/srs';
 import { soundFx } from '../utils/sound';
 import { speakEnglish } from '../utils/tts';
-import { blankWordInSentence, isClozeAnswerCorrect, toLetterBlanks } from '../utils/clozeBlank';
+import {
+  BlankSlot,
+  blankWordInSentence,
+  buildBlankSlots,
+  countBlankSlots,
+  isClozeAnswerCorrect,
+  limitTypedToBlankSlots,
+  toLetterBlanks,
+} from '../utils/clozeBlank';
 import confetti from 'canvas-confetti';
 import {
   Volume2,
@@ -104,6 +112,44 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
     if (!currentWord || direction !== 'zh_to_en') return '';
     return cloze?.blankMask || toLetterBlanks(currentWord.word);
   }, [currentWord, direction, cloze]);
+
+  const expectedFillSurface = useMemo(() => {
+    if (!currentWord || direction !== 'zh_to_en') return '';
+    return cloze?.blankedForm || currentWord.word;
+  }, [currentWord, direction, cloze]);
+
+  const blankSlotCount = useMemo(() => countBlankSlots(fillBlankMask), [fillBlankMask]);
+
+  // 已輸入字母覆寫到空格上，其餘 _ 保留；對=綠、錯=紅
+  const blankSlots = useMemo(() => {
+    if (!fillBlankMask) return [] as BlankSlot[];
+    return buildBlankSlots(fillBlankMask, typedAnswer, expectedFillSurface);
+  }, [fillBlankMask, typedAnswer, expectedFillSurface]);
+
+  const clozeBlankStart = useMemo(() => {
+    if (!cloze?.blankMask) return -1;
+    return cloze.clozeSentence.indexOf(cloze.blankMask);
+  }, [cloze]);
+
+  const renderBlankSlots = (slots: BlankSlot[], className: string) => (
+    <span className={`font-mono font-bold whitespace-pre ${className}`}>
+      {slots.map((s, i) => {
+        const color =
+          s.status === 'correct'
+            ? 'text-emerald-400'
+            : s.status === 'wrong'
+              ? 'text-rose-400'
+              : s.status === 'empty'
+                ? 'text-indigo-300'
+                : 'text-slate-400';
+        return (
+          <span key={i} className={color}>
+            {s.char}
+          </span>
+        );
+      })}
+    </span>
+  );
 
   // Generate options when currentWord changes
   useEffect(() => {
@@ -463,7 +509,15 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
             </div>
             {cloze ? (
               <p className="text-xl sm:text-2xl font-semibold text-white leading-relaxed tracking-wide font-mono whitespace-pre-wrap">
-                {cloze.clozeSentence}
+                {clozeBlankStart >= 0 ? (
+                  <>
+                    {cloze.clozeSentence.slice(0, clozeBlankStart)}
+                    {renderBlankSlots(blankSlots, 'tracking-[0.05em]')}
+                    {cloze.clozeSentence.slice(clozeBlankStart + cloze.blankMask.length)}
+                  </>
+                ) : (
+                  cloze.clozeSentence
+                )}
               </p>
             ) : null}
             <p
@@ -476,12 +530,12 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
             {currentWord.exampleZh?.trim() && cloze && (
               <p className="mt-2 text-sm text-slate-400 leading-relaxed">{currentWord.exampleZh}</p>
             )}
-            {/* 填充空格：每個字母一個 _ */}
+            {/* 填充空格：輸入時其餘 _ 保留；對=綠、錯=紅 */}
             <p
-              className="mt-5 text-3xl sm:text-4xl font-mono font-bold text-indigo-300 tracking-[0.2em] whitespace-pre"
+              className="mt-5 text-3xl sm:text-4xl tracking-[0.2em]"
               aria-label="填空格數提示"
             >
-              {fillBlankMask}
+              {renderBlankSlots(blankSlots, 'tracking-[0.2em]')}
             </p>
           </div>
         )}
@@ -535,7 +589,13 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
             type="text"
             disabled={isAnswered}
             value={typedAnswer}
-            onChange={e => setTypedAnswer(e.target.value)}
+            onChange={e => {
+              const next =
+                direction === 'zh_to_en' && blankSlotCount > 0
+                  ? limitTypedToBlankSlots(e.target.value, blankSlotCount)
+                  : e.target.value;
+              setTypedAnswer(next);
+            }}
             placeholder={direction === 'zh_to_en' && fillBlankMask ? fillBlankMask : '請填入英文單字…'}
             autoFocus
             autoCapitalize="off"
