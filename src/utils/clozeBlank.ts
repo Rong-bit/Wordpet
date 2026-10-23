@@ -1,11 +1,17 @@
 import { getNounForms, getVerbForms } from './englishGrammar';
 
 export interface ClozeBlankResult {
-  /** Sentence with the first match replaced by _____. */
+  /** Sentence with the first match replaced by one `_` per letter (spaces kept). */
   clozeSentence: string;
   /** Exact surface form that was blanked (preserves casing from the sentence). */
   blankedForm: string;
+  /** Underscore mask shown in the sentence, e.g. "persevere" → "_________". */
+  blankMask: string;
 }
+
+/** Map each letter/digit to `_`; keep spaces and punctuation so phrase shape stays visible. */
+export const toLetterBlanks = (surface: string): string =>
+  [...surface].map(ch => (/[A-Za-z0-9]/.test(ch) ? '_' : ch)).join('');
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -75,10 +81,11 @@ export const blankWordInSentence = (sentence: string, word: string): ClozeBlankR
   if (!match || match.index === undefined) return null;
 
   const blankedForm = match[1];
+  const blankMask = toLetterBlanks(blankedForm);
   const clozeSentence =
-    example.slice(0, match.index) + '_____' + example.slice(match.index + blankedForm.length);
+    example.slice(0, match.index) + blankMask + example.slice(match.index + blankedForm.length);
 
-  return { clozeSentence, blankedForm };
+  return { clozeSentence, blankedForm, blankMask };
 };
 
 /** Accept lemma or the blanked surface form (case-insensitive). */
