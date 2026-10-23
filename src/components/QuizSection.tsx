@@ -1,20 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Word, Pet, Item } from '../types';
 import { calculateNextReview } from '../utils/srs';
 import { soundFx } from '../utils/sound';
 import { speakEnglish } from '../utils/tts';
+import { blankWordInSentence, isClozeAnswerCorrect } from '../utils/clozeBlank';
 import confetti from 'canvas-confetti';
 import {
   Volume2,
   CheckCircle,
   XCircle,
   ArrowRight,
-  BookOpen,
   Award,
   Sparkles,
-  HelpCircle,
   RefreshCw,
-  Zap,
 } from 'lucide-react';
 
 interface QuizSectionProps {
@@ -89,6 +87,18 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
 
   const currentWord = testWords[currentIndex];
 
+  // 中文考英文：固定填充題（例句挖空）
+  useEffect(() => {
+    if (direction === 'zh_to_en') {
+      setIsSpellingMode(true);
+    }
+  }, [direction]);
+
+  const cloze = useMemo(() => {
+    if (!currentWord || direction !== 'zh_to_en') return null;
+    return blankWordInSentence(currentWord.exampleEn, currentWord.word);
+  }, [currentWord, direction]);
+
   // Generate options when currentWord changes
   useEffect(() => {
     if (!currentWord || testWords.length === 0) return;
@@ -102,7 +112,13 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
       speakEnglish(currentWord.word, voiceGender, voiceSpeed);
     }
 
-    const pick = (w: Word) => (direction === 'zh_to_en' ? w.word : w.meaning);
+    // zh_to_en 只用填充題，不必產生選項
+    if (direction === 'zh_to_en') {
+      setOptions([]);
+      return;
+    }
+
+    const pick = (w: Word) => w.meaning;
     const correctAns = pick(currentWord);
     const sameCategory = allWords.filter(w => w.category === currentWord.category);
     const pool = sameCategory.length >= 8 ? sameCategory : allWords;
@@ -124,27 +140,29 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
     );
   }
 
-  // Answer selection handler (Multiple choice)
+  // Answer selection handler (Multiple choice) — en_to_zh / listening only
   const handleSelectOption = (option: string) => {
     if (isAnswered) return;
 
     setSelectedOption(option);
     setIsAnswered(true);
 
-    const targetAnswer =
-      direction === 'zh_to_en' ? currentWord.word : currentWord.meaning;
+    const targetAnswer = currentWord.meaning;
     const correct = option.trim() === targetAnswer.trim();
 
     handleAnswerEvaluation(correct);
   };
 
-  // Spelling submit handler
+  // Spelling / cloze fill-in submit handler
   const handleSpellingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isAnswered || !typedAnswer.trim()) return;
 
     setIsAnswered(true);
-    const correct = typedAnswer.trim().toLowerCase() === currentWord.word.toLowerCase();
+    const correct =
+      direction === 'zh_to_en'
+        ? isClozeAnswerCorrect(typedAnswer, currentWord.word, cloze?.blankedForm)
+        : typedAnswer.trim().toLowerCase() === currentWord.word.toLowerCase();
     setSelectedOption(typedAnswer);
     handleAnswerEvaluation(correct);
   };
@@ -344,18 +362,25 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
           </button>
         </div>
 
-        {/* Spelling Toggle & Progress */}
+        {/* Spelling Toggle & Progress（中文考英文固定填充題，不顯示切換） */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsSpellingMode(!isSpellingMode)}
-            className={`rounded-xl px-2.5 py-1 text-xs font-bold border transition-colors ${
-              isSpellingMode
-                ? 'border-amber-500/50 bg-amber-500/20 text-amber-300'
-                : 'border-slate-800 bg-slate-800/40 text-slate-400 hover:text-white'
-            }`}
-          >
-            {isSpellingMode ? '✏️ 拼寫測驗' : '🔲 選擇題'}
-          </button>
+          {direction !== 'zh_to_en' && (
+            <button
+              onClick={() => setIsSpellingMode(!isSpellingMode)}
+              className={`rounded-xl px-2.5 py-1 text-xs font-bold border transition-colors ${
+                isSpellingMode
+                  ? 'border-amber-500/50 bg-amber-500/20 text-amber-300'
+                  : 'border-slate-800 bg-slate-800/40 text-slate-400 hover:text-white'
+              }`}
+            >
+              {isSpellingMode ? '✏️ 拼寫測驗' : '🔲 選擇題'}
+            </button>
+          )}
+          {direction === 'zh_to_en' && (
+            <span className="rounded-xl px-2.5 py-1 text-xs font-bold border border-amber-500/50 bg-amber-500/20 text-amber-300">
+              ✏️ 填充題
+            </span>
+          )}
 
           <span className="text-xs font-bold text-indigo-300">
             {currentIndex + 1} / {testWords.length}
@@ -425,24 +450,39 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
             </h2>
           </div>
         ) : (
-          /* zh_to_en: Chinese Prompt */
+          /* zh_to_en: cloze fill-in with Chinese hint */
           <div>
-            <div className="text-xs sm:text-sm px-2.5 py-1 rounded-md bg-purple-500/20 text-purple-300 font-bold inline-block mb-2 border border-purple-500/30">
-              {currentWord.partOfSpeech} 請選出正確英文單字
+            <div className="text-xs sm:text-sm px-2.5 py-1 rounded-md bg-purple-500/20 text-purple-300 font-bold inline-block mb-3 border border-purple-500/30">
+              {currentWord.partOfSpeech} 請填入正確英文單字
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black text-amber-300 tracking-wide">
-              {currentWord.meaning}
-            </h2>
+            {cloze ? (
+              <>
+                <p className="text-xl sm:text-2xl font-semibold text-white leading-relaxed tracking-wide">
+                  {cloze.clozeSentence}
+                </p>
+                <p className="mt-4 text-2xl sm:text-3xl font-black text-amber-300 tracking-wide">
+                  {currentWord.meaning}
+                </p>
+                {currentWord.exampleZh?.trim() && (
+                  <p className="mt-2 text-sm text-slate-400 leading-relaxed">
+                    {currentWord.exampleZh}
+                  </p>
+                )}
+              </>
+            ) : (
+              <h2 className="text-3xl sm:text-4xl font-black text-amber-300 tracking-wide">
+                {currentWord.meaning}
+              </h2>
+            )}
           </div>
         )}
       </div>
 
-      {/* Answer Options or Spelling Form */}
-      {!isSpellingMode ? (
+      {/* Answer Options or Spelling / Cloze Form */}
+      {direction !== 'zh_to_en' && !isSpellingMode ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {options.map((option, idx) => {
-            const targetAnswer =
-              direction === 'zh_to_en' ? currentWord.word : currentWord.meaning;
+            const targetAnswer = currentWord.meaning;
             const isThisCorrect = option === targetAnswer;
             const isThisSelected = selectedOption === option;
 
@@ -480,15 +520,18 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
           })}
         </div>
       ) : (
-        /* Spelling Input Box */
+        /* Spelling / Cloze Input Box */
         <form onSubmit={handleSpellingSubmit} className="space-y-3">
           <input
             type="text"
             disabled={isAnswered}
             value={typedAnswer}
             onChange={e => setTypedAnswer(e.target.value)}
-            placeholder="請輸入英文單字拼寫..."
+            placeholder="請填入英文單字…"
             autoFocus
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
             className="w-full rounded-2xl bg-slate-950 border border-slate-700 px-4 py-3.5 text-base text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
           />
           {!isAnswered && (
@@ -497,7 +540,7 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
               disabled={!typedAnswer.trim()}
               className="w-full rounded-2xl bg-indigo-600 hover:bg-indigo-500 py-3 text-xs font-bold text-white transition-colors"
             >
-              提交拼寫驗證
+              提交答案
             </button>
           )}
         </form>
@@ -514,6 +557,20 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
 
             {/* In-depth error clarification */}
             <div className="space-y-2 text-slate-300 text-sm sm:text-base">
+              {direction === 'zh_to_en' && typedAnswer.trim() && (
+                <p className="text-sm">
+                  你的答案：<span className="font-mono text-rose-300">{typedAnswer.trim()}</span>
+                  <span className="mx-2 text-slate-600">→</span>
+                  正確：<span className="font-mono font-bold text-emerald-300">{currentWord.word}</span>
+                  {cloze?.blankedForm &&
+                    cloze.blankedForm.toLowerCase() !== currentWord.word.toLowerCase() && (
+                      <span className="text-slate-400">
+                        {' '}
+                        （句中為 <span className="font-mono text-slate-200">{cloze.blankedForm}</span>）
+                      </span>
+                    )}
+                </p>
+              )}
               <p>
                 <span className="font-extrabold text-white text-base sm:text-lg">{currentWord.word}</span>{' '}
                 <span className="text-slate-400 font-mono">{currentWord.phonetic}</span> :{' '}
