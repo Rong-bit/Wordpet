@@ -13,6 +13,78 @@ export interface ClozeBlankResult {
 export const toLetterBlanks = (surface: string): string =>
   [...surface].map(ch => (/[A-Za-z0-9]/.test(ch) ? '_' : ch)).join('');
 
+/**
+ * Overlay typed letters onto a blank mask.
+ * Only A–Z / 0–9 from `typed` fill `_` slots; remaining `_` stay; spaces/punct in the mask are kept.
+ * e.g. mask `____ __` + typed `l` → `l___ __`; + `look up` → `look up`
+ */
+export const applyAnswerToBlankMask = (mask: string, typed: string): string => {
+  if (!mask) return '';
+  const letters = [...typed].filter(ch => /[A-Za-z0-9]/.test(ch));
+  let i = 0;
+  return [...mask]
+    .map(ch => {
+      if (ch !== '_') return ch;
+      if (i < letters.length) return letters[i++];
+      return '_';
+    })
+    .join('');
+};
+
+export type BlankSlotStatus = 'empty' | 'correct' | 'wrong' | 'fixed';
+
+export interface BlankSlot {
+  char: string;
+  status: BlankSlotStatus;
+}
+
+/** Count how many letter slots (`_`) a mask has. */
+export const countBlankSlots = (mask: string): number =>
+  [...mask].filter(ch => ch === '_').length;
+
+/**
+ * Build per-character slots for colored fill-in UI.
+ * Typed letters overlay `_`; leftover `_` stay; each filled letter is correct (green) or wrong (red)
+ * vs the expected surface form (aligned to `_` slots only).
+ */
+export const buildBlankSlots = (
+  mask: string,
+  typed: string,
+  expectedSurface: string
+): BlankSlot[] => {
+  if (!mask) return [];
+  const expectedLetters = [...expectedSurface].filter(ch => /[A-Za-z0-9]/.test(ch));
+  const typedLetters = [...typed].filter(ch => /[A-Za-z0-9]/.test(ch));
+  let ei = 0;
+  let ti = 0;
+
+  return [...mask].map(ch => {
+    if (ch !== '_') return { char: ch, status: 'fixed' as const };
+    const expected = expectedLetters[ei++] ?? '';
+    if (ti >= typedLetters.length) return { char: '_', status: 'empty' as const };
+    const typedCh = typedLetters[ti++];
+    const ok = !!expected && typedCh.toLowerCase() === expected.toLowerCase();
+    return { char: typedCh, status: (ok ? 'correct' : 'wrong') as BlankSlotStatus };
+  });
+};
+
+/** Keep typing natural but cap alphanumeric chars to the number of `_` slots. */
+export const limitTypedToBlankSlots = (typed: string, maxSlots: number): string => {
+  if (maxSlots <= 0) return '';
+  let used = 0;
+  let out = '';
+  for (const ch of typed) {
+    if (/[A-Za-z0-9]/.test(ch)) {
+      if (used >= maxSlots) continue;
+      used += 1;
+      out += ch;
+    } else if (ch === ' ' || ch === '-' || ch === "'") {
+      out += ch;
+    }
+  }
+  return out;
+};
+
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** Collect plausible surface forms for a headword (lemma + common inflections). */
