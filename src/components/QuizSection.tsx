@@ -3,7 +3,7 @@ import { Word, Pet, Item } from '../types';
 import { calculateNextReview } from '../utils/srs';
 import { soundFx } from '../utils/sound';
 import { speakEnglish } from '../utils/tts';
-import { blankWordInSentence, isClozeAnswerCorrect } from '../utils/clozeBlank';
+import { blankWordInSentence, isClozeAnswerCorrect, toLetterBlanks } from '../utils/clozeBlank';
 import confetti from 'canvas-confetti';
 import {
   Volume2,
@@ -98,6 +98,12 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
     if (!currentWord || direction !== 'zh_to_en') return null;
     return blankWordInSentence(currentWord.exampleEn, currentWord.word);
   }, [currentWord, direction]);
+
+  // 填充題空格：每個字母一個 _（片語保留空白），有例句時與句中挖空一致
+  const fillBlankMask = useMemo(() => {
+    if (!currentWord || direction !== 'zh_to_en') return '';
+    return cloze?.blankMask || toLetterBlanks(currentWord.word);
+  }, [currentWord, direction, cloze]);
 
   // Generate options when currentWord changes
   useEffect(() => {
@@ -456,24 +462,27 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
               {currentWord.partOfSpeech} 請填入正確英文單字
             </div>
             {cloze ? (
-              <>
-                <p className="text-xl sm:text-2xl font-semibold text-white leading-relaxed tracking-wide font-mono">
-                  {cloze.clozeSentence}
-                </p>
-                <p className="mt-4 text-2xl sm:text-3xl font-black text-amber-300 tracking-wide">
-                  {currentWord.meaning}
-                </p>
-                {currentWord.exampleZh?.trim() && (
-                  <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                    {currentWord.exampleZh}
-                  </p>
-                )}
-              </>
-            ) : (
-              <h2 className="text-3xl sm:text-4xl font-black text-amber-300 tracking-wide">
-                {currentWord.meaning}
-              </h2>
+              <p className="text-xl sm:text-2xl font-semibold text-white leading-relaxed tracking-wide font-mono whitespace-pre-wrap">
+                {cloze.clozeSentence}
+              </p>
+            ) : null}
+            <p
+              className={`text-2xl sm:text-3xl font-black text-amber-300 tracking-wide ${
+                cloze ? 'mt-4' : ''
+              }`}
+            >
+              {currentWord.meaning}
+            </p>
+            {currentWord.exampleZh?.trim() && cloze && (
+              <p className="mt-2 text-sm text-slate-400 leading-relaxed">{currentWord.exampleZh}</p>
             )}
+            {/* 填充空格：每個字母一個 _ */}
+            <p
+              className="mt-5 text-3xl sm:text-4xl font-mono font-bold text-indigo-300 tracking-[0.2em] whitespace-pre"
+              aria-label="填空格數提示"
+            >
+              {fillBlankMask}
+            </p>
           </div>
         )}
       </div>
@@ -527,12 +536,14 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
             disabled={isAnswered}
             value={typedAnswer}
             onChange={e => setTypedAnswer(e.target.value)}
-            placeholder="請填入英文單字…"
+            placeholder={direction === 'zh_to_en' && fillBlankMask ? fillBlankMask : '請填入英文單字…'}
             autoFocus
             autoCapitalize="off"
             autoCorrect="off"
             spellCheck={false}
-            className="w-full rounded-2xl bg-slate-950 border border-slate-700 px-4 py-3.5 text-base text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            className={`w-full rounded-2xl bg-slate-950 border border-slate-700 px-4 py-3.5 text-base text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 ${
+              direction === 'zh_to_en' ? 'font-mono tracking-widest placeholder:tracking-[0.2em]' : ''
+            }`}
           />
           {!isAnswered && (
             <button
