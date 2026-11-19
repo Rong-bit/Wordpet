@@ -40,6 +40,8 @@ export const DEFAULT_PROFILE: UserProfile = {
   isOfflineMode: false,
   lastCloudSync: null,
   quizBatchSize: 20,
+  unlockedCosmetics: ['hat_none', 'acc_none', 'theme_forest'],
+  shopDaily: { date: new Date().toISOString().split('T')[0], bought: {} },
 };
 
 export function loadAppState(): AppState {
@@ -102,7 +104,21 @@ export function loadAppState(): AppState {
     if (sAchievements) achievements = JSON.parse(sAchievements);
 
     const sProfile = localStorage.getItem(STORAGE_KEYS.PROFILE);
-    if (sProfile) profile = JSON.parse(sProfile);
+    if (sProfile) {
+      const parsed: UserProfile = JSON.parse(sProfile);
+      profile = {
+        ...DEFAULT_PROFILE,
+        ...parsed,
+        unlockedCosmetics: Array.from(
+          new Set([
+            'hat_none',
+            'acc_none',
+            'theme_forest',
+            ...(parsed.unlockedCosmetics || []),
+          ])
+        ),
+      };
+    }
 
     const sUnlocked = localStorage.getItem(STORAGE_KEYS.UNLOCKED_SPECIES);
     if (sUnlocked) unlockedSpecies = JSON.parse(sUnlocked);

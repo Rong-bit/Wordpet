@@ -92,6 +92,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     maxProgress: 7,
     unlocked: false,
     rewardCoins: 500,
+    rewardDiamonds: 2,
   },
   {
     id: 'ach_evolution_adult',
@@ -114,6 +115,7 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     maxProgress: 1,
     unlocked: false,
     rewardCoins: 800,
+    rewardDiamonds: 3,
   },
   {
     id: 'ach_weak_slayer',

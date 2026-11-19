@@ -27,7 +27,13 @@ interface QuizSectionProps {
   dueWords: Word[];
   allWords: Word[];
   pet: Pet;
-  onFinishQuiz: (updatedWords: Word[], gainedExp: number, gainedCoins: number, rewardItem?: Item) => void;
+  onFinishQuiz: (
+    updatedWords: Word[],
+    gainedExp: number,
+    gainedCoins: number,
+    rewardItem?: Item,
+    listeningCorrects?: number
+  ) => void;
   onClose: () => void;
   voiceGender: 'en-US' | 'en-GB';
   voiceSpeed: number;
@@ -67,6 +73,7 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
   // Rewards earned in this session
   const [earnedExp, setEarnedExp] = useState(0);
   const [earnedCoins, setEarnedCoins] = useState(0);
+  const [listeningCorrects, setListeningCorrects] = useState(0);
   const [quizFinished, setQuizFinished] = useState(false);
 
   // Auto-next timer ref for seamless instant transition on correct answer
@@ -239,6 +246,9 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
       soundFx.playCorrect();
       setEarnedExp(prev => prev + 25);
       setEarnedCoins(prev => prev + 15);
+      if (direction === 'listening') {
+        setListeningCorrects(prev => prev + 1);
+      }
 
       // 測驗若正確，直接下一題（等待 550ms 讓使用者看見綠色反饋及播放提示音）
       autoNextTimerRef.current = setTimeout(() => {
@@ -274,7 +284,7 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
 
   const handleFinalSubmit = () => {
     const updatedList = sessionResults.map(r => r.word);
-    onFinishQuiz(updatedList, earnedExp, earnedCoins);
+    onFinishQuiz(updatedList, earnedExp, earnedCoins, undefined, listeningCorrects);
   };
 
   const handleRetryMistakes = () => {
@@ -283,6 +293,9 @@ export const QuizSection: React.FC<QuizSectionProps> = ({
     setCurrentIndex(0);
     setSessionResults([]);
     setMistakeWords([]);
+    setListeningCorrects(0);
+    setEarnedExp(0);
+    setEarnedCoins(0);
     setQuizFinished(false);
   };
 

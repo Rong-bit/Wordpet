@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { LeaderboardUser, Pet, UserProfile } from '../types';
 import { INITIAL_LEADERBOARD } from '../data/socialAndQuests';
-import { Trophy, Flame, Zap, Award, Users, Share2, Crown, Sparkles } from 'lucide-react';
+import { isoWeekKey, WEEKLY_LEADERBOARD_DIAMONDS } from '../data/shop';
+import { Trophy, Flame, Share2 } from 'lucide-react';
 
 interface LeaderboardViewProps {
   pet: Pet;
   profile: UserProfile;
   masteredWordsCount: number;
+  onClaimWeeklyReward?: (rank: number, diamonds: number) => void;
 }
 
 export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
   pet,
   profile,
   masteredWordsCount,
+  onClaimWeeklyReward,
 }) => {
   const [tab, setTab] = useState<'weekly' | 'allTime'>('weekly');
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -134,6 +137,24 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {tab === 'weekly' &&
+        currentUserRank >= 1 &&
+        currentUserRank <= 3 &&
+        onClaimWeeklyReward &&
+        profile.lastWeeklyRewardWeek !== isoWeekKey() && (
+          <button
+            onClick={() =>
+              onClaimWeeklyReward(currentUserRank, WEEKLY_LEADERBOARD_DIAMONDS[currentUserRank] || 0)
+            }
+            className="w-full rounded-2xl border border-sky-500/40 bg-sky-950/40 px-4 py-3 text-sm font-bold text-sky-200 hover:bg-sky-900/50 transition-colors"
+          >
+            領取本週前三名獎勵：+{WEEKLY_LEADERBOARD_DIAMONDS[currentUserRank] || 0} 💎
+          </button>
+        )}
+      {tab === 'weekly' && profile.lastWeeklyRewardWeek === isoWeekKey() && (
+        <p className="text-center text-xs text-slate-500">本週排行榜鑽石獎勵已領取</p>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
