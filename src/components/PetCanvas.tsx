@@ -120,12 +120,22 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
   const hatShift = isEgg ? -30 : headTop - 70;
   const wingColor = isWeak ? '#9CA3AF' : mixColor(primary, '#FFFFFF', 0.2);
 
+  const theme = customization.backgroundTheme || 'forest';
+  const themeBg: Record<string, string> = {
+    forest: 'radial-gradient(circle at 50% 30%, #14532d 0%, #052e16 55%, #020617 100%)',
+    volcano: 'radial-gradient(circle at 50% 40%, #7c2d12 0%, #450a0a 50%, #020617 100%)',
+    heaven: 'radial-gradient(circle at 50% 20%, #e0f2fe 0%, #7dd3fc 35%, #0c4a6e 100%)',
+    cosmic: 'radial-gradient(circle at 40% 30%, #4c1d95 0%, #1e1b4b 45%, #020617 100%)',
+    cyberpunk: 'radial-gradient(circle at 60% 20%, #083344 0%, #164e63 40%, #020617 100%)',
+  };
+
   return (
     <div
       onClick={onClick}
-      className={`relative flex items-center justify-center select-none overflow-visible ${sizeMap[size] || sizeMap.lg} ${
+      className={`relative flex items-center justify-center select-none overflow-hidden rounded-2xl ${sizeMap[size] || sizeMap.lg} ${
         interactive ? 'cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95' : ''
       }`}
+      style={{ background: themeBg[theme] || themeBg.forest }}
     >
       {showStatusAura && (
         <div

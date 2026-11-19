@@ -152,7 +152,23 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                       <p className="text-[11px] text-slate-400 mt-1">{ach.desc}</p>
                       <p className="text-[10px] text-amber-400 font-semibold mt-1">
                         達成獎勵：+{ach.rewardCoins} 🪙
+                        {ach.rewardDiamonds ? ` · +${ach.rewardDiamonds} 💎` : ''}
                       </p>
+                      {ach.unlocked && !ach.rewardClaimed && (
+                        <button
+                          onClick={() => {
+                            soundFx.playLevelUp();
+                            confetti({ particleCount: 40, spread: 55, origin: { y: 0.7 } });
+                            onClaimAchievement(ach.id);
+                          }}
+                          className="mt-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-3 py-1 text-[11px] font-bold text-slate-950"
+                        >
+                          領取獎勵
+                        </button>
+                      )}
+                      {ach.unlocked && ach.rewardClaimed && (
+                        <p className="mt-1 text-[10px] text-slate-500">獎勵已領取</p>
+                      )}
                     </div>
                   </div>
                 </div>

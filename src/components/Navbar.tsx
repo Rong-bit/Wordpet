@@ -18,6 +18,7 @@ import {
   Type,
   Settings,
   Mic,
+  ShoppingBag,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -27,6 +28,7 @@ interface NavbarProps {
   onUpdateProfile: (p: UserProfile) => void;
   onOpenBestiary: () => void;
   onOpenInventory: () => void;
+  onOpenShop: () => void;
   onOpenAchievements: () => void;
   onOpenSync: () => void;
   dueWordsCount: number;
@@ -55,6 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onUpdateProfile,
   onOpenBestiary,
   onOpenInventory,
+  onOpenShop,
   onOpenAchievements,
   onOpenSync,
   dueWordsCount,
@@ -211,6 +214,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button onClick={onOpenBestiary} className={iconBtn} title="神獸圖鑑">
               <BookOpen className="h-4 w-4" />
             </button>
+            <button onClick={onOpenShop} className={iconBtn} title="冒險商店">
+              <ShoppingBag className="h-4 w-4" />
+            </button>
             <button onClick={onOpenInventory} className={iconBtn} title="背包">
               <Backpack className="h-4 w-4" />
             </button>
@@ -266,9 +272,10 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Mobile Drawer Dropdown Sheet */}
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-slate-800 bg-slate-950/98 backdrop-blur-2xl px-4 py-3 space-y-3 animate-in slide-in-from-top-2 duration-200 shadow-2xl">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {[
               { label: '神獸圖鑑', icon: BookOpen, onClick: onOpenBestiary },
+              { label: '冒險商店', icon: ShoppingBag, onClick: onOpenShop },
               { label: '任務成就', icon: Gift, onClick: onOpenAchievements },
               { label: '備份同步', icon: Cloud, onClick: onOpenSync },
             ].map(item => {

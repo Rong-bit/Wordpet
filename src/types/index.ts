@@ -128,6 +128,18 @@ export interface Achievement {
   unlocked: boolean;
   unlockedAt?: string;
   rewardCoins: number;
+  rewardDiamonds?: number;
+  /** Whether coin/diamond reward has been claimed after unlock */
+  rewardClaimed?: boolean;
+}
+
+export type ShopCurrency = 'coins' | 'diamonds';
+
+export type ShopCategory = 'consumable' | 'evolution' | 'cosmetic' | 'theme';
+
+export interface ShopDailyState {
+  date: string; // YYYY-MM-DD
+  bought: Record<string, number>;
 }
 
 export interface LeaderboardUser {
@@ -161,4 +173,10 @@ export interface UserProfile {
   lastCloudSync: string | null;
   quizBatchSize?: number; // 每次測驗建議題數 (例如 20~30 題，預設 20 題)
   fontSizeMode?: 'normal' | 'large' | 'huge'; // 字體大小模式 (normal: 標準, large: 大, huge: 特大)
+  /** Unlocked cosmetic keys: hat_*, acc_*, theme_* */
+  unlockedCosmetics?: string[];
+  /** Per-day shop purchase counts for limited items */
+  shopDaily?: ShopDailyState;
+  /** ISO week key (e.g. 2026-W47) when weekly leaderboard diamonds were claimed */
+  lastWeeklyRewardWeek?: string;
 }

@@ -13,6 +13,7 @@ import { INITIAL_PET, INITIAL_ITEMS } from './data/bestiary';
 import { applyExpGain, ExpGainResult } from './utils/evolution';
 import { EvolutionCelebrationModal } from './components/EvolutionCelebrationModal';
 import { EscapedPetModal } from './components/EscapedPetModal';
+import { ShopModal } from './components/ShopModal';
 import { soundFx } from './utils/sound';
 import confetti from 'canvas-confetti';
 import { Navbar } from './components/Navbar';
@@ -29,6 +30,7 @@ import { BestiaryModal } from './components/BestiaryModal';
 import { InventoryModal } from './components/InventoryModal';
 import { AchievementsModal } from './components/AchievementsModal';
 import { SyncModal } from './components/SyncModal';
+import { FREE_COSMETICS, isoWeekKey } from './data/shop';
 
 import {
   Play,
@@ -61,8 +63,19 @@ export default function App() {
   const [showInventory, setShowInventory] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showSync, setShowSync] = useState(false);
+  const [showShop, setShowShop] = useState(false);
 
   const { words, pet, items, quests, achievements, profile, unlockedSpecies } = appState;
+
+  const applyReviewStreak = (p: UserProfile): UserProfile => {
+    const today = new Date().toISOString().split('T')[0];
+    if (p.lastActiveDate === today) return p;
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    const yesterday = y.toISOString().split('T')[0];
+    const streak = p.lastActiveDate === yesterday ? p.streakDays + 1 : 1;
+    return { ...p, streakDays: streak, lastActiveDate: today };
+  };
 
   // Sync state to local storage whenever critical parts change
   useEffect(() => {
@@ -263,7 +276,8 @@ export default function App() {
     updatedWords: Word[],
     gainedExp: number,
     gainedCoins: number,
-    rewardItem?: Item
+    rewardItem?: Item,
+    listeningCorrects = 0
   ) => {
     // 1. Update words map
     const wordsMap = new Map(words.map(w => [w.id, w]));
@@ -286,12 +300,15 @@ export default function App() {
       wordsLearnedCount: pet.wordsLearnedCount + updatedWords.length,
     };
 
-    // 3. Update profile
+    // 3. Update profile (streak on first activity of the day)
+    const streaked = applyReviewStreak(profile);
     const updatedProfile: UserProfile = {
-      ...profile,
-      coins: profile.coins + gainedCoins,
-      totalReviewsDone: profile.totalReviewsDone + updatedWords.length,
-      lastActiveDate: new Date().toISOString().split('T')[0],
+      ...streaked,
+      coins: streaked.coins + gainedCoins,
+      totalReviewsDone: streaked.totalReviewsDone + updatedWords.length,
+      unlockedCosmetics: Array.from(
+        new Set([...(streaked.unlockedCosmetics || []), ...FREE_COSMETICS])
+      ),
     };
 
     // 4. Update quests
@@ -304,6 +321,14 @@ export default function App() {
           isCompleted: cur >= q.target,
         };
       }
+      if (q.id === 'quest_4' && listeningCorrects > 0) {
+        const cur = q.current + listeningCorrects;
+        return {
+          ...q,
+          current: Math.min(cur, q.target),
+          isCompleted: cur >= q.target,
+        };
+      }
       return q;
     });
 
@@ -313,8 +338,22 @@ export default function App() {
       if (a.id === 'ach_words_10') {
         return {
           ...a,
-          progress: newlyMastered,
-          unlocked: newlyMastered >= 10,
+          progress: Math.min(newlyMastered, a.maxProgress),
+          unlocked: newlyMastered >= 10 || a.unlocked,
+        };
+      }
+      if (a.id === 'ach_words_30') {
+        return {
+          ...a,
+          progress: Math.min(newlyMastered, a.maxProgress),
+          unlocked: newlyMastered >= 30 || a.unlocked,
+        };
+      }
+      if (a.id === 'ach_streak_7') {
+        return {
+          ...a,
+          progress: Math.min(updatedProfile.streakDays, a.maxProgress),
+          unlocked: updatedProfile.streakDays >= 7 || a.unlocked,
         };
       }
       if (a.id === 'ach_egg_hatch' && nextStage !== 'egg') {
@@ -390,20 +429,76 @@ export default function App() {
       return q;
     });
 
+    const streaked = applyReviewStreak(profile);
     setAppState(prev => ({
       ...prev,
       words: newWordsList,
       pet: updatedPet,
       quests: updatedQuests,
       unlockedSpecies: mergeSpecies(prev.unlockedSpecies, growth.unlockedSpecies),
-      achievements: withEvolutionAchievements(prev.achievements, updatedPet),
+      achievements: withEvolutionAchievements(
+        prev.achievements.map(a =>
+          a.id === 'ach_streak_7'
+            ? {
+                ...a,
+                progress: Math.min(streaked.streakDays, a.maxProgress),
+                unlocked: streaked.streakDays >= 7 || a.unlocked,
+              }
+            : a.id === 'ach_weak_slayer'
+              ? { ...a, progress: 1, unlocked: true }
+              : a
+        ),
+        updatedPet
+      ),
       profile: {
-        ...prev.profile,
-        coins: prev.profile.coins + gainedCoins,
+        ...streaked,
+        coins: streaked.coins + gainedCoins,
       },
     }));
 
     setIsWeakDrillActive(false);
+  };
+
+  const handleClaimAchievement = (achId: string) => {
+    const ach = achievements.find(a => a.id === achId);
+    if (!ach || !ach.unlocked || ach.rewardClaimed) return;
+    setAppState(prev => ({
+      ...prev,
+      achievements: prev.achievements.map(a =>
+        a.id === achId ? { ...a, rewardClaimed: true } : a
+      ),
+      profile: {
+        ...prev.profile,
+        coins: prev.profile.coins + (ach.rewardCoins || 0),
+        diamonds: prev.profile.diamonds + (ach.rewardDiamonds || 0),
+      },
+    }));
+    showToast(
+      `成就獎勵：+${ach.rewardCoins} 🪙` +
+        (ach.rewardDiamonds ? ` · +${ach.rewardDiamonds} 💎` : '')
+    );
+  };
+
+  const handleShopPurchase = (nextProfile: UserProfile, nextItems: Item[], message: string) => {
+    setAppState(prev => ({ ...prev, profile: nextProfile, items: nextItems }));
+    showToast(message);
+  };
+
+  const handleWeeklyLeaderboardReward = (rank: number, diamonds: number) => {
+    if (diamonds <= 0) return;
+    if (profile.lastWeeklyRewardWeek === isoWeekKey()) {
+      showToast('本週獎勵已領取');
+      return;
+    }
+    setAppState(prev => ({
+      ...prev,
+      profile: {
+        ...prev.profile,
+        diamonds: prev.profile.diamonds + diamonds,
+        lastWeeklyRewardWeek: isoWeekKey(),
+      },
+    }));
+    showToast(`週榜第 ${rank} 名獎勵：+${diamonds} 💎`);
   };
 
   // Feed Pet
@@ -587,6 +682,7 @@ export default function App() {
         onUpdateProfile={p => setAppState(prev => ({ ...prev, profile: p }))}
         onOpenBestiary={() => setShowBestiary(true)}
         onOpenInventory={() => setShowInventory(true)}
+        onOpenShop={() => setShowShop(true)}
         onOpenAchievements={() => setShowAchievements(true)}
         onOpenSync={() => setShowSync(true)}
         dueWordsCount={dueWords.length}
@@ -871,6 +967,7 @@ export default function App() {
             pet={pet}
             profile={profile}
             masteredWordsCount={masteredWords.length}
+            onClaimWeeklyReward={handleWeeklyLeaderboardReward}
           />
         )}
       </main>
@@ -912,9 +1009,23 @@ export default function App() {
 
       <PetCustomizerModal
         pet={pet}
+        profile={profile}
         isOpen={showCustomizer}
         onClose={() => setShowCustomizer(false)}
         onSave={updated => setAppState(prev => ({ ...prev, pet: updated }))}
+        onOpenShop={() => {
+          setShowCustomizer(false);
+          setShowShop(true);
+        }}
+      />
+
+      <ShopModal
+        isOpen={showShop}
+        onClose={() => setShowShop(false)}
+        profile={profile}
+        items={items}
+        onPurchase={handleShopPurchase}
+        onToast={showToast}
       />
 
       <PetShareModal
@@ -973,7 +1084,7 @@ export default function App() {
         isOpen={showAchievements}
         onClose={() => setShowAchievements(false)}
         onClaimQuest={handleClaimQuest}
-        onClaimAchievement={() => {}}
+        onClaimAchievement={handleClaimAchievement}
       />
 
       <SyncModal
