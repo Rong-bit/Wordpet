@@ -110,8 +110,17 @@ export function loadAppState(): AppState {
     console.error('Failed to parse saved state from local storage:', err);
   }
 
-  // Calculate pet inactivity decay (督促每天練習)
-  pet = checkAndApplyPetDecay(pet);
+  // Calculate pet inactivity decay; may reset to egg when escaped
+  const decay = checkAndApplyPetDecay(pet);
+  pet = decay.pet;
+  if (decay.escaped) {
+    stashPendingEscape(decay.escaped);
+    try {
+      localStorage.setItem(STORAGE_KEYS.PET, JSON.stringify(pet));
+    } catch {
+      // ignore
+    }
+  }
 
   return { words, pet, items, quests, achievements, profile, unlockedSpecies };
 }
@@ -132,16 +141,91 @@ export function saveAppState(state: Partial<AppState>) {
   }
 }
 
+/** UI warning + danger_escape mood threshold (days without review). */
+export const PET_WARN_DAYS = 3;
+/** Actual escape: reset to a new egg (stage !== egg only). */
+export const PET_ESCAPE_DAYS = 5;
+
+export interface EscapedPetSummary {
+  name: string;
+  speciesId: string;
+  title: string;
+  level: number;
+  stage: Pet['stage'];
+  daysAway: number;
+  escapedAt: string;
+}
+
+export interface PetDecayResult {
+  pet: Pet;
+  escaped: EscapedPetSummary | null;
+}
+
+const ESCAPE_PENDING_KEY = 'wordpet_pending_escape_v1';
+
+/** Fresh egg after escape; keeps cosmetic prefs if present. */
+export function createFreshEgg(from?: Pet): Pet {
+  const now = new Date().toISOString();
+  return {
+    ...INITIAL_PET,
+    id: `pet_egg_${Date.now()}`,
+    hunger: 90,
+    health: 100,
+    mood: 'happy',
+    daysUnreviewed: 0,
+    lastFedAt: now,
+    lastActiveAt: now,
+    hatchedAt: '',
+    wordsLearnedCount: 0,
+    customization: from?.customization ? { ...from.customization } : { ...INITIAL_PET.customization },
+  };
+}
+
+export function stashPendingEscape(summary: EscapedPetSummary) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(ESCAPE_PENDING_KEY, JSON.stringify(summary));
+  } catch {
+    // ignore
+  }
+}
+
+export function takePendingEscape(): EscapedPetSummary | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(ESCAPE_PENDING_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(ESCAPE_PENDING_KEY);
+    return JSON.parse(raw) as EscapedPetSummary;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Pet decay calculation:
- * If user hasn't reviewed in 1+ days, hunger drops. If 2+ days, pet is weak. If 3+ days, escape warning!
+ * Pet decay:
+ * 1+ days → hungry, 2+ → weak, 3+ → danger_escape warning,
+ * 5+ (and not egg) → escaped: replace with a fresh egg.
  */
-export function checkAndApplyPetDecay(pet: Pet): Pet {
-  const now = new Date().getTime();
+export function checkAndApplyPetDecay(pet: Pet): PetDecayResult {
+  const now = Date.now();
   const lastActive = pet.lastActiveAt ? new Date(pet.lastActiveAt).getTime() : now;
   const elapsedDays = Math.floor((now - lastActive) / (1000 * 60 * 60 * 24));
 
-  if (elapsedDays <= 0) return pet;
+  if (elapsedDays <= 0) return { pet, escaped: null };
+
+  if (elapsedDays >= PET_ESCAPE_DAYS && pet.stage !== 'egg') {
+    const escaped: EscapedPetSummary = {
+      name: pet.name,
+      speciesId: pet.speciesId,
+      title: pet.title,
+      level: pet.level,
+      stage: pet.stage,
+      daysAway: elapsedDays,
+      escapedAt: new Date().toISOString(),
+    };
+    return { pet: createFreshEgg(pet), escaped };
+  }
 
   const hungerDrop = elapsedDays * 25;
   const newHunger = Math.max(0, pet.hunger - hungerDrop);
@@ -152,7 +236,7 @@ export function checkAndApplyPetDecay(pet: Pet): Pet {
   }
 
   let newMood = pet.mood;
-  if (elapsedDays >= 4) {
+  if (elapsedDays >= PET_WARN_DAYS) {
     newMood = 'danger_escape';
   } else if (newHealth < 40 || elapsedDays >= 2) {
     newMood = 'weak';
@@ -161,11 +245,14 @@ export function checkAndApplyPetDecay(pet: Pet): Pet {
   }
 
   return {
-    ...pet,
-    hunger: newHunger,
-    health: newHealth,
-    mood: newMood,
-    daysUnreviewed: elapsedDays,
+    pet: {
+      ...pet,
+      hunger: newHunger,
+      health: newHealth,
+      mood: newMood,
+      daysUnreviewed: elapsedDays,
+    },
+    escaped: null,
   };
 }
 

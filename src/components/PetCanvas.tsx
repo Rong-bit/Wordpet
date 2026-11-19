@@ -366,7 +366,7 @@ export const PetCanvas: React.FC<PetCanvasProps> = ({
 
       {mood === 'danger_escape' && (
         <div className="absolute top-1 right-1 bg-red-600/90 text-white text-xs px-2.5 py-1 rounded-full font-bold shadow-lg animate-bounce border border-red-400">
-          ⚠️ 瀕臨逃跑！
+          瀕臨逃跑！
         </div>
       )}
       {mood === 'weak' && (
