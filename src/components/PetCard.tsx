@@ -3,6 +3,7 @@ import { Pet, Item } from '../types';
 import { PetCanvas } from './PetCanvas';
 import { getNextEvolution, HATCH_LEVEL } from '../utils/evolution';
 import { EVOLUTION_LEVELS } from '../data/petSpecies';
+import { PET_ESCAPE_DAYS, PET_WARN_DAYS } from '../utils/storage';
 import { soundFx } from '../utils/sound';
 import confetti from 'canvas-confetti';
 import {
@@ -220,20 +221,39 @@ export const PetCard: React.FC<PetCardProps> = ({
         )}
 
         {/* INACTIVITY WARNING BANNER */}
-        {pet.daysUnreviewed > 0 && (
-          <div className="mb-4 flex items-center gap-3 rounded-2xl bg-amber-500/10 p-3 border border-amber-500/30 text-amber-200">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400" />
+        {pet.daysUnreviewed > 0 && pet.stage !== 'egg' && (
+          <div
+            className={`mb-4 flex items-center gap-3 rounded-2xl p-3 border text-amber-200 ${
+              pet.daysUnreviewed >= PET_WARN_DAYS
+                ? 'bg-rose-500/10 border-rose-500/40 text-rose-200'
+                : 'bg-amber-500/10 border-amber-500/30'
+            }`}
+          >
+            <AlertTriangle
+              className={`h-5 w-5 shrink-0 ${
+                pet.daysUnreviewed >= PET_WARN_DAYS ? 'text-rose-400' : 'text-amber-400'
+              }`}
+            />
             <div className="text-xs">
               <p className="font-bold">
-                {pet.daysUnreviewed >= 3 ? '寵物快要離家出走了！' : '寵物餓了'}
+                {pet.daysUnreviewed >= PET_WARN_DAYS
+                  ? '寵物快要離家出走了！'
+                  : '寵物餓了'}
               </p>
               <p className="opacity-90 text-[11px] mt-0.5">
-                已 {pet.daysUnreviewed} 天沒複習，複習一下就能恢復。
+                已 {pet.daysUnreviewed} 天沒複習
+                {pet.daysUnreviewed >= PET_WARN_DAYS
+                  ? `；再缺席到第 ${PET_ESCAPE_DAYS} 天就會真的離開，變回蛋。`
+                  : '，複習一下就能恢復。'}
               </p>
             </div>
             <button
               onClick={onStartReview}
-              className="ml-auto shrink-0 rounded-xl bg-amber-500 hover:bg-amber-400 px-3 py-1.5 text-xs font-bold text-slate-950 transition-colors shadow-md"
+              className={`ml-auto shrink-0 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-950 transition-colors shadow-md ${
+                pet.daysUnreviewed >= PET_WARN_DAYS
+                  ? 'bg-rose-500 hover:bg-rose-400'
+                  : 'bg-amber-500 hover:bg-amber-400'
+              }`}
             >
               立即搶救
             </button>

@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Word, Pet, Item, DailyQuest, Achievement, UserProfile } from './types';
-import { loadAppState, saveAppState, AppState } from './utils/storage';
+import {
+  loadAppState,
+  saveAppState,
+  AppState,
+  takePendingEscape,
+  EscapedPetSummary,
+} from './utils/storage';
 import { loadAllWordBanks } from './utils/wordBank';
 import { addCategoryPatch, getWordCategories, isInCategory } from './utils/wordCategory';
 import { INITIAL_PET, INITIAL_ITEMS } from './data/bestiary';
 import { applyExpGain, ExpGainResult } from './utils/evolution';
 import { EvolutionCelebrationModal } from './components/EvolutionCelebrationModal';
+import { EscapedPetModal } from './components/EscapedPetModal';
 import { soundFx } from './utils/sound';
 import confetti from 'canvas-confetti';
 import { Navbar } from './components/Navbar';
@@ -202,6 +209,13 @@ export default function App() {
   // --- GROWTH HELPERS ---
   const [celebration, setCelebration] = useState<{ pet: Pet; hatched: boolean } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [escapedNotice, setEscapedNotice] = useState<EscapedPetSummary | null>(null);
+
+  // Show escape modal once after load if pet ran away (≥5 idle days)
+  useEffect(() => {
+    const escaped = takePendingEscape();
+    if (escaped) setEscapedNotice(escaped);
+  }, []);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -365,6 +379,7 @@ export default function App() {
       health: 100,
       mood: growth.evolvedStages.length > 0 ? 'ecstatic' : 'happy',
       daysUnreviewed: 0,
+      lastActiveAt: new Date().toISOString(),
     };
 
     // Update quest 3 (易錯單字狙擊)
@@ -412,6 +427,8 @@ export default function App() {
       hunger: Math.min(100, pet.hunger + hungerBoost),
       health: Math.min(100, pet.health + healthBoost),
       mood: 'ecstatic',
+      lastFedAt: new Date().toISOString(),
+      // 餵食不重置出走計時，鼓勵以複習維持陪伴
     };
 
     // Update quest 2 (寵物愛心餵養)
@@ -864,6 +881,18 @@ export default function App() {
           pet={celebration.pet}
           hatched={celebration.hatched}
           onClose={() => setCelebration(null)}
+        />
+      )}
+
+      {escapedNotice && (
+        <EscapedPetModal
+          escaped={escapedNotice}
+          onStartReview={() => {
+            setEscapedNotice(null);
+            setCurrentTab('home');
+            setIsQuizActive(true);
+          }}
+          onDismiss={() => setEscapedNotice(null)}
         />
       )}
 
