@@ -517,13 +517,17 @@ export default function App() {
 
     const growth = applyExpGain(pet, expBoost);
     announceGrowth(growth);
+    const nowIso = new Date().toISOString();
     const updatedPet: Pet = {
       ...growth.pet,
       hunger: Math.min(100, pet.hunger + hungerBoost),
       health: Math.min(100, pet.health + healthBoost),
       mood: 'ecstatic',
-      lastFedAt: new Date().toISOString(),
-      // 餵食不重置出走計時，鼓勵以複習維持陪伴
+      lastFedAt: nowIso,
+      // 一般餵食不重置出走計時；羈絆護符例外
+      ...(item.effect.resetNeglect
+        ? { daysUnreviewed: 0, lastActiveAt: nowIso }
+        : {}),
     };
 
     // Update quest 2 (寵物愛心餵養)
@@ -546,16 +550,25 @@ export default function App() {
 
   // Handle mutation success
   const handleMutateSuccess = (mutatedPet: Pet, consumedItemId: string) => {
+    const stone = items.find(i => i.id === consumedItemId);
+    const bonusExp = stone?.effect.exp || 0;
+    const withExp = bonusExp > 0 ? applyExpGain(mutatedPet, bonusExp) : null;
+    const finalPet = withExp ? withExp.pet : mutatedPet;
+    if (withExp) announceGrowth(withExp);
+
     const updatedItems = items.map(i =>
       i.id === consumedItemId ? { ...i, count: Math.max(0, i.count - 1) } : i
     );
 
     setAppState(prev => ({
       ...prev,
-      pet: mutatedPet,
+      pet: finalPet,
       items: updatedItems,
-      unlockedSpecies: mergeSpecies(prev.unlockedSpecies, [mutatedPet.speciesId]),
-      achievements: withEvolutionAchievements(prev.achievements, mutatedPet),
+      unlockedSpecies: mergeSpecies(prev.unlockedSpecies, [
+        mutatedPet.speciesId,
+        ...(withExp?.unlockedSpecies || []),
+      ]),
+      achievements: withEvolutionAchievements(prev.achievements, finalPet),
     }));
   };
 

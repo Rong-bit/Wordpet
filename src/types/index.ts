@@ -100,7 +100,8 @@ export interface Item {
     exp?: number;
     hunger?: number;
     health?: number;
-    mutationBonus?: number;
+    /** Clear neglect timer (daysUnreviewed / lastActiveAt) — e.g. escape amulet */
+    resetNeglect?: boolean;
   };
 }
 

@@ -60,7 +60,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               <span className="text-[11px] text-slate-400">鑽石</span>
             </div>
           </div>
-          <span className="text-xs text-slate-400">複習單字與解每日任務可獲取道具</span>
+          <span className="text-xs text-slate-400">可在「冒險商店」購買；複習也可能掉落結晶</span>
         </div>
 
         {/* Item List */}
@@ -94,9 +94,10 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
                 <div className="mt-3 pt-2 border-t border-slate-800/80 flex items-center justify-between">
                   <div className="text-[11px] text-emerald-400 font-medium">
-                    {item.effect.hunger && `飽食 +${item.effect.hunger} `}
-                    {item.effect.exp && `EXP +${item.effect.exp} `}
-                    {item.effect.health && `生命 +${item.effect.health}`}
+                    {item.effect.hunger ? `飽食 +${item.effect.hunger} ` : ''}
+                    {item.effect.exp ? `EXP +${item.effect.exp} ` : ''}
+                    {item.effect.health ? `生命 +${item.effect.health} ` : ''}
+                    {item.effect.resetNeglect ? '重置出走計時' : ''}
                   </div>
 
                   {item.count > 0 && (item.type === 'food' || item.type === 'potion') ? (
@@ -104,7 +105,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                       onClick={() => onUseItem(item)}
                       className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3 py-1 text-xs font-bold text-white transition-colors"
                     >
-                      立即使用
+                      {item.effect.resetNeglect ? '使用護符' : '立即使用'}
                     </button>
                   ) : item.type === 'evolution_stone' ? (
                     <span className="text-[11px] text-purple-300 font-semibold">

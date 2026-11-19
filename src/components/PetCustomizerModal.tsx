@@ -44,7 +44,7 @@ export const PetCustomizerModal: React.FC<PetCustomizerModalProps> = ({
     { id: 'none', name: '無配件', icon: '🚫' },
     { id: 'medal', name: '榮譽英豪勳章', icon: '🎖️' },
     { id: 'cape', name: '夜幕王者披風', icon: '🦸' },
-    { id: 'magic_orb', name: '魔力環繞寶珠', icon: '🔮' },
+    { id: 'magic_orb', name: '魔力環繞寶珠', icon: '🟣' },
     { id: 'star_badge', name: '星光徽章', icon: '⭐' },
   ];
 

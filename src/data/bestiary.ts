@@ -249,7 +249,7 @@ export const INITIAL_ITEMS: Item[] = [
   {
     id: 'item_apple',
     name: '智慧金蘋果',
-    description: '含有豐富營養的果實，飽食度 +30，生命力 +20。',
+    description: '日常飼料：飽食 +30、生命 +20、經驗 +15。不影響出走計時。',
     icon: '🍎',
     type: 'food',
     count: 3,
@@ -259,7 +259,7 @@ export const INITIAL_ITEMS: Item[] = [
   {
     id: 'item_cookie',
     name: '艾賓豪斯記憶餅乾',
-    description: '特製配方點心，寵物食用後獲得 +50 經驗值與飽食度 +25。',
+    description: '進階點心：飽食 +25、經驗 +50。不影響出走計時。',
     icon: '🍪',
     type: 'food',
     count: 2,
@@ -268,8 +268,8 @@ export const INITIAL_ITEMS: Item[] = [
   },
   {
     id: 'item_elixir',
-    name: '生命復元全靈藥水',
-    description: '若寵物因多日未複習而陷入虛弱，立即恢復 100% 生命力與心情！',
+    name: '生命復元藥水',
+    description: '急救藥水：生命回滿、飽食 +50、心情變好。不會清除「未複習天數」，仍需複習才安全。',
     icon: '🧪',
     type: 'potion',
     count: 1,
@@ -279,23 +279,33 @@ export const INITIAL_ITEMS: Item[] = [
   {
     id: 'item_stone_fire',
     name: '進化結晶',
-    description: '不需等級門檻，讓寵物沿著自己的進化路線立即進化到下一階段。',
+    description: '跳關道具：立即進化一階，並獲得 +100 經驗。最終型態無法再進化時不可使用。',
     icon: '🔮',
     type: 'evolution_stone',
     count: 1,
     rarity: 'rare',
-    effect: { mutationBonus: 20, exp: 100 },
+    effect: { exp: 100 },
   },
   {
     id: 'item_mutation_core',
     name: '異色變異核心',
-    description: '立即進化到下一階段，並覺醒稀有的異色毛色與更高稀有度；最終型態也能使用來改變毛色。',
-    icon: '💎',
+    description: '進化一階並覺醒異色毛色（+300 經驗）；已是最終型態時改為只改變毛色。',
+    icon: '💠',
     type: 'evolution_stone',
     count: 1,
     rarity: 'legendary',
-    effect: { mutationBonus: 50, exp: 300 },
-  }
+    effect: { exp: 300 },
+  },
+  {
+    id: 'item_escape_amulet',
+    name: '羈絆護符',
+    description: '鑽石級急救：立刻將未複習天數歸零並刷新陪伴時間，避免寵物出走。',
+    icon: '🛡️',
+    type: 'potion',
+    count: 0,
+    rarity: 'legendary',
+    effect: { resetNeglect: true, health: 40, hunger: 20 },
+  },
 ];
 
 export const INITIAL_PET: Pet = {
@@ -333,5 +343,5 @@ export const INITIAL_PET: Pet = {
   },
   wordsLearnedCount: 0,
   evolutionPower: 120,
-  specialTrait: '孵化衝刺：每完成 5 個單字複習，蛋殼裂痕加深，孵化進度大增！',
+  specialTrait: '破殼在即：累積經驗升到 Lv.2 就會孵化成專屬幼寵！',
 };

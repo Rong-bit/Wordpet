@@ -84,10 +84,15 @@ export function loadAppState(): AppState {
     const sItems = localStorage.getItem(STORAGE_KEYS.ITEMS);
     if (sItems) {
       const parsedItems: Item[] = JSON.parse(sItems);
-      items = parsedItems.map(i => {
+      const merged = parsedItems.map(i => {
         const def = INITIAL_ITEMS.find(d => d.id === i.id);
         return def ? { ...def, count: i.count } : i;
       });
+      // Ensure newly added catalog items exist in backpack (count 0)
+      INITIAL_ITEMS.forEach(def => {
+        if (!merged.some(i => i.id === def.id)) merged.push({ ...def });
+      });
+      items = merged;
     }
 
     const today = new Date().toISOString().split('T')[0];
